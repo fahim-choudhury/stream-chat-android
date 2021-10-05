@@ -6,6 +6,7 @@
 
 ### ✅ Added
 - Added `onErrorSuspend` extension for `Result` to allow executing suspending lambda function for handing error response.
+- Create new artifact to integrate Xiaomi Mi Push with Stream. You will need to add  `stream-chat-android-pushprovider-xiaomi` artifact to your App. Check our [docs](https://getstream.io/chat/docs/sdk/android/client/guides/push-notifications/xiaomi) for further details.
 
 ### ⚠️ Changed
 
@@ -109,6 +110,17 @@
 
 ### ❌ Removed
 
+## stream-chat-android-pushprovider-xiaomi
+### 🐞 Fixed
+
+### ⬆️ Improved
+
+### ✅ Added
+- Added a `XiaomiMessagingDelegate` class to simplify custom implementations of `PushMessageReceiver` that forward messages to the SDK. See [Using a Custom PushMessageReceiver](https://getstream.io/chat/docs/sdk/android/client/guides/push-notifications/huawei#using-a-custom-pushmessagereceiver) for more details.
+- 
+### ⚠️ Changed
+
+### ❌ Removed
 
 # October 27th, 2021 - 4.21.0
 ## Common changes for all artifacts
@@ -284,7 +296,6 @@ The maximum attachments count cannot be greater than 10. Default value: 10.
 - Changed the parameter type of `itemContent` in `MessageList` and `Messages` to `MessageListItem`
 - Renamed `onScrollToBottom` to `onScrolledToBottom` in `MessageList` and `Messages`
 - Made the ChannelListHeader Slot APIs non-nullable so they're always provided, also made them an extension of the RowScope for ease of use
-
 
 # September 15th, 2021 - 4.19.0
 ## Common changes for all artifacts
