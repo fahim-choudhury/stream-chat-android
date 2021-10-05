@@ -8,6 +8,7 @@ public data class Device(
 public enum class PushProvider(internal val key: String) {
     FIREBASE("firebase"),
     HUAWEI("huawei"),
+    XIAOMI("xiaomi"),
     UNKNOWN("unknown");
 
     internal companion object {
