@@ -116,7 +116,7 @@
 ### ⬆️ Improved
 
 ### ✅ Added
-- Added a `XiaomiMessagingDelegate` class to simplify custom implementations of `PushMessageReceiver` that forward messages to the SDK. See [Using a Custom PushMessageReceiver](https://getstream.io/chat/docs/sdk/android/client/guides/push-notifications/huawei#using-a-custom-pushmessagereceiver) for more details.
+- Added a `XiaomiMessagingDelegate` class to simplify custom implementations of `PushMessageReceiver` that forward messages to the SDK. See [Using a Custom PushMessageReceiver](https://getstream.io/chat/docs/sdk/android/client/guides/push-notifications/xiaomi/#using-a-custom-pushmessagereceiver) for more details.
 - 
 ### ⚠️ Changed
 
