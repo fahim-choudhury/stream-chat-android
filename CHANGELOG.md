@@ -136,6 +136,7 @@ Consider migrating to `stream-chat-android-ui-components` or `stream-chat-androi
 
 ### ❌ Removed
 
+<!-- end of unreleased -->
 
 # December 9th, 2021 - 4.24.0
 ## stream-chat-android-offline
