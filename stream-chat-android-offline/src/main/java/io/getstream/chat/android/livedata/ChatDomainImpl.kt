@@ -10,6 +10,7 @@ import io.getstream.chat.android.client.errors.ChatError
 import io.getstream.chat.android.client.events.ChatEvent
 import io.getstream.chat.android.client.models.Attachment
 import io.getstream.chat.android.client.models.Channel
+import io.getstream.chat.android.client.models.ChannelMute
 import io.getstream.chat.android.client.models.Config
 import io.getstream.chat.android.client.models.Member
 import io.getstream.chat.android.client.models.Message
@@ -26,6 +27,7 @@ import io.getstream.chat.android.livedata.controller.ThreadControllerImpl
 import io.getstream.chat.android.livedata.utils.Event
 import io.getstream.chat.android.livedata.utils.RetryPolicy
 import io.getstream.chat.android.livedata.utils.toLiveDataRetryPolicy
+import io.getstream.chat.android.offline.model.ConnectionState
 import kotlinx.coroutines.flow.map
 import io.getstream.chat.android.offline.ChatDomain as ChatDomainStateFlow
 
@@ -70,6 +72,13 @@ internal class ChatDomainImpl internal constructor(internal val chatDomainStateF
     /**
      * LiveData<Boolean> that indicates if we are currently online
      */
+    override val connectionState: LiveData<ConnectionState> = chatDomainStateFlow.connectionState.asLiveData()
+
+    @Deprecated(
+        message = "Use connectionState instead",
+        level = DeprecationLevel.ERROR
+    )
+    @Suppress("DEPRECATION_ERROR")
     override val online: LiveData<Boolean> = chatDomainStateFlow.online.asLiveData()
 
     /**
@@ -89,6 +98,11 @@ internal class ChatDomainImpl internal constructor(internal val chatDomainStateF
     override val muted: LiveData<List<Mute>> = chatDomainStateFlow.muted.asLiveData()
 
     /**
+     * List of channels you've muted
+     */
+    override val channelMutes: LiveData<List<ChannelMute>> = chatDomainStateFlow.channelMutes.asLiveData()
+
+    /**
      * if the current user is banned or not
      */
     override val banned: LiveData<Boolean> = chatDomainStateFlow.banned.asLiveData()
@@ -106,16 +120,9 @@ internal class ChatDomainImpl internal constructor(internal val chatDomainStateF
     override val typingUpdates: LiveData<TypingEvent> = chatDomainStateFlow.typingUpdates.asLiveData()
 
     /** The retry policy for retrying failed requests */
-    override var retryPolicy: RetryPolicy
-        get() = chatDomainStateFlow.retryPolicy.toLiveDataRetryPolicy()
-        set(value) {
-            chatDomainStateFlow.retryPolicy = value
-        }
+    override val retryPolicy: RetryPolicy = chatDomainStateFlow.retryPolicy.toLiveDataRetryPolicy()
 
     override fun getVersion(): String = chatDomainStateFlow.getVersion()
-
-    override fun removeMembers(cid: String, vararg userIds: String): Call<Channel> =
-        chatDomainStateFlow.removeMembers(cid, *userIds)
 
     override fun isOnline(): Boolean = chatDomainStateFlow.isOnline()
 
@@ -249,11 +256,5 @@ internal class ChatDomainImpl internal constructor(internal val chatDomainStateF
         sort: QuerySort<Member>,
         members: List<Member>,
     ): Call<List<Member>> = chatDomainStateFlow.queryMembers(cid, offset, limit, filter, sort, members)
-
-    override fun createDistinctChannel(
-        channelType: String,
-        members: List<String>,
-        extraData: Map<String, Any>,
-    ): Call<Channel> = chatDomainStateFlow.createDistinctChannel(channelType, members, extraData)
     // end region
 }

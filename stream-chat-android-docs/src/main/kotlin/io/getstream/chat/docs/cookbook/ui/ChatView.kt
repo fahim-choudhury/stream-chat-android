@@ -12,7 +12,6 @@ import androidx.fragment.app.viewModels
 import com.getstream.sdk.chat.adapter.MessageListItem
 import com.getstream.sdk.chat.viewmodel.MessageInputViewModel
 import com.getstream.sdk.chat.viewmodel.messages.MessageListViewModel
-import io.getstream.chat.android.client.models.name
 import io.getstream.chat.android.ui.StyleTransformer
 import io.getstream.chat.android.ui.TransformStyle
 import io.getstream.chat.android.ui.message.input.MessageInputView
@@ -152,7 +151,7 @@ class CustomMessageListItemViewHolderFactory : MessageListItemViewHolderFactory(
         viewType: Int,
     ): BaseMessageItemViewHolder<out MessageListItem> {
         return if (viewType == MessageListItemViewType.PLAIN_TEXT) {
-            CustomMessagePlainTextViewHolder(parentView, listenerContainer)
+            CustomMessagePlainTextViewHolder(parentView, listenerContainer!!)
         } else {
             super.createViewHolder(parentView, viewType)
         }
@@ -162,7 +161,7 @@ class CustomMessageListItemViewHolderFactory : MessageListItemViewHolderFactory(
 class CustomMessagePlainTextViewHolder(
     parent: ViewGroup,
     listeners: MessageListListenerContainer,
-    val binding: CustomPlainTextItemBinding =
+    private val binding: CustomPlainTextItemBinding =
         CustomPlainTextItemBinding.inflate(
             LayoutInflater.from(parent.context),
             parent,

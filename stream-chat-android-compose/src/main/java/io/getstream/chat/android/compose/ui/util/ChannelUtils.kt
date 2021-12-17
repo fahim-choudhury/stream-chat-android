@@ -1,34 +1,12 @@
 package io.getstream.chat.android.compose.ui.util
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.ReadOnlyComposable
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
+import android.content.Context
 import com.getstream.sdk.chat.viewmodel.messages.getCreatedAtOrThrow
-import io.getstream.chat.android.client.extensions.getUsersExcludingCurrent
 import io.getstream.chat.android.client.models.Channel
 import io.getstream.chat.android.client.models.Message
 import io.getstream.chat.android.client.models.User
 import io.getstream.chat.android.compose.R
-import io.getstream.chat.android.compose.ui.theme.ChatTheme
-
-/**
- * Generates the display name for a channel based on its data.
- *
- * @return The display name of the channel.
- */
-@Composable
-@ReadOnlyComposable
-public fun Channel.getDisplayName(): String {
-    return name.takeIf { it.isNotEmpty() }
-        ?: getUsersExcludingCurrent()
-            .joinToString { it.name }
-            .takeIf { it.isNotEmpty() }
-        ?: stringResource(id = R.string.stream_compose_channel_list_untitled_channel)
-}
+import java.util.Date
 
 /**
  * Returns channel's last regular or system message if exists.
@@ -46,73 +24,71 @@ public fun Channel.getLastMessage(currentUser: User?): Message? =
         .maxByOrNull { it.getCreatedAtOrThrow() }
 
 /**
- * Returns the preview text of the last message in a given [Channel].
+ * Filters the read status of each person other than the target user.
  *
- * It formats the message based on if there are attachments or not and based on the sender.
+ * @param userToIgnore The user whose message it is.
  *
- * @param currentUser The current user in the app.
- * @return The formatted preview text for the channel item.
+ * @return List of [Date] values that represent a read status for each other user in the channel.
  */
-@Composable
-@ReadOnlyComposable
-public fun Channel.getLastMessagePreviewText(
-    currentUser: User?,
-): AnnotatedString {
-    val context = LocalContext.current
+public fun Channel.getReadStatuses(userToIgnore: User?): List<Date> {
+    return read.filter { it.user.id != userToIgnore?.id }
+        .mapNotNull { it.lastRead }
+}
 
-    return buildAnnotatedString {
-        getLastMessage(currentUser)?.let { message ->
-            val messageText = message.text.trim()
+/**
+ * Checks if the channel is distinct.
+ *
+ * A distinct channel is a channel created without ID based on members. Internally
+ * the server creates a CID which starts with "!members" prefix and is unique for
+ * this particular group of users.
+ *
+ * @return True if the channel is distinct.
+ */
+public fun Channel.isDistinct(): Boolean = cid.contains("!members")
 
-            if (message.isSystem()) {
-                append(messageText)
+/**
+ * Checks if the channel is a direct conversation between the current user and some
+ * other user.
+ *
+ * A one-to-one chat is basically a corner case of a distinct channel with only 2 members.
+ *
+ * @param currentUser The currently logged in user.
+ * @return True if the channel is a one-to-one conversation.
+ */
+public fun Channel.isOneToOne(currentUser: User?): Boolean {
+    return isDistinct() &&
+        members.size == 2 &&
+        members.any { it.user.id == currentUser?.id }
+}
+
+/**
+ * Returns a string describing the member status of the channel: either a member count for a group channel
+ * or the last seen text for a direct one-to-one conversation with the current user.
+ *
+ * @param context The context to load string resources.
+ * @param currentUser The currently logged in user.
+ * @return The text that represent the member status of the channel.
+ */
+public fun Channel.getMembersStatusText(context: Context, currentUser: User?): String {
+    return when {
+        isOneToOne(currentUser) -> members.first { it.user.id != currentUser?.id }
+            .user
+            .getLastSeenText(context)
+        else -> {
+            val memberCountString = context.resources.getQuantityString(
+                R.plurals.stream_compose_member_count,
+                memberCount,
+                memberCount
+            )
+
+            return if (watcherCount > 0) {
+                context.getString(
+                    R.string.stream_compose_member_count_online,
+                    memberCountString,
+                    watcherCount
+                )
             } else {
-                val sender = message.getSenderDisplayName(context, currentUser)
-
-                if (sender != null) {
-                    append("$sender: ")
-
-                    addStyle(
-                        SpanStyle(
-                            fontStyle = ChatTheme.typography.bodyBold.fontStyle
-                        ),
-                        start = 0,
-                        end = sender.length
-                    )
-                }
-
-                if (messageText.isNotEmpty()) {
-                    val startIndex = this.length
-                    append("$messageText ")
-
-                    addStyle(
-                        SpanStyle(
-                            fontStyle = ChatTheme.typography.bodyBold.fontStyle
-                        ),
-                        start = startIndex,
-                        end = startIndex + messageText.length
-                    )
-                }
-
-                val attachmentText = message.attachments
-                    .takeIf { it.isNotEmpty() }
-                    ?.mapNotNull { attachment ->
-                        attachment.title ?: attachment.name
-                    }
-                    ?.joinToString()
-
-                if (attachmentText != null) {
-                    val startIndex = this.length
-                    append(attachmentText)
-
-                    addStyle(
-                        SpanStyle(
-                            fontStyle = ChatTheme.typography.bodyItalic.fontStyle
-                        ),
-                        start = startIndex,
-                        end = startIndex + attachmentText.length
-                    )
-                }
+                memberCountString
             }
         }
     }

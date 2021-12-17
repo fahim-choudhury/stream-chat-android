@@ -75,6 +75,4 @@ public object ChatUI {
         set(value) {
             mimeTypeIconProviderOverride = value
         }
-
-    public var uiMode: UiMode = UiMode.SYSTEM
 }

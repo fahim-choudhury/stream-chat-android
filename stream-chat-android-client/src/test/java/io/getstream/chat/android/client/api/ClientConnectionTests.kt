@@ -50,8 +50,6 @@ internal class ClientConnectionTests {
         "hello.http",
         "cdn.http",
         "socket.url",
-        1000,
-        1000,
         false,
         ChatLogger.Config(ChatLogLevel.NOTHING, null),
 
@@ -102,8 +100,10 @@ internal class ClientConnectionTests {
             socketStateService = socketStateService,
             queryChannelsPostponeHelper = queryChannelsPostponeHelper,
             userStateService = userStateService,
-            encryptedUserConfigStorage = mock(),
+            userCredentialStorage = mock(),
             tokenUtils = tokenUtils,
+            appContext = mock(),
+            scope = testCoroutines.scope,
         )
     }
 

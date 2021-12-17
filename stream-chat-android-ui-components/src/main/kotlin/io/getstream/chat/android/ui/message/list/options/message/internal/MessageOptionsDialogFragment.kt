@@ -14,6 +14,7 @@ import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.LiveData
 import com.getstream.sdk.chat.adapter.MessageListItem
 import io.getstream.chat.android.client.models.Message
+import io.getstream.chat.android.client.models.Reaction
 import io.getstream.chat.android.client.models.User
 import io.getstream.chat.android.livedata.ChatDomain
 import io.getstream.chat.android.ui.R
@@ -25,11 +26,10 @@ import io.getstream.chat.android.ui.message.list.MessageListView
 import io.getstream.chat.android.ui.message.list.MessageListViewStyle
 import io.getstream.chat.android.ui.message.list.adapter.BaseMessageItemViewHolder
 import io.getstream.chat.android.ui.message.list.adapter.MessageListItemViewHolderFactory
-import io.getstream.chat.android.ui.message.list.adapter.MessageListListenerContainerImpl
 import io.getstream.chat.android.ui.message.list.adapter.internal.MessageListItemViewTypeMapper
-import io.getstream.chat.android.ui.message.list.adapter.viewholder.attachment.AttachmentViewFactory
 import io.getstream.chat.android.ui.message.list.adapter.viewholder.internal.MessagePlainTextViewHolder
 import io.getstream.chat.android.ui.message.list.adapter.viewholder.internal.TextAndAttachmentsViewHolder
+import io.getstream.chat.android.ui.message.list.background.MessageBackgroundFactory
 import java.io.Serializable
 
 internal class MessageOptionsDialogFragment : FullScreenDialogFragment() {
@@ -44,6 +44,8 @@ internal class MessageOptionsDialogFragment : FullScreenDialogFragment() {
     }
 
     private val style by lazy { messageListViewStyle!! }
+
+    private val viewHolderFactory by lazy { messageViewHolderFactory!! }
 
     private val configuration by lazy {
         requireArguments().getSerializable(ARG_OPTIONS_CONFIG) as MessageOptionsView.Configuration
@@ -66,6 +68,7 @@ internal class MessageOptionsDialogFragment : FullScreenDialogFragment() {
     private var confirmDeleteMessageClickHandler: ConfirmDeleteMessageClickHandler? = null
     private var confirmFlagMessageClickHandler: ConfirmFlagMessageClickHandler? = null
     private var messageOptionsHandlers: MessageOptionsHandlers? = null
+    private var userReactionClickHandler: UserReactionClickHandler? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -93,6 +96,7 @@ internal class MessageOptionsDialogFragment : FullScreenDialogFragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         messageListViewStyle = null
+        messageViewHolderFactory = null
         _binding = null
     }
 
@@ -102,10 +106,15 @@ internal class MessageOptionsDialogFragment : FullScreenDialogFragment() {
         messageOptionsHandlers = null
         confirmDeleteMessageClickHandler = null
         confirmFlagMessageClickHandler = null
+        userReactionClickHandler = null
     }
 
     fun setReactionClickHandler(reactionClickHandler: ReactionClickHandler) {
         this.reactionClickHandler = reactionClickHandler
+    }
+
+    fun setUserReactionClickHandler(userReactionClickHandler: UserReactionClickHandler) {
+        this.userReactionClickHandler = userReactionClickHandler
     }
 
     fun setConfirmDeleteMessageClickHandler(confirmDeleteMessageClickHandler: ConfirmDeleteMessageClickHandler) {
@@ -157,13 +166,7 @@ internal class MessageOptionsDialogFragment : FullScreenDialogFragment() {
     }
 
     private fun setupMessageView() {
-        viewHolder = MessageListItemViewHolderFactory()
-            .apply {
-                decoratorProvider = MessageOptionsDecoratorProvider(style.itemStyle, style.replyMessageStyle)
-                setListenerContainer(MessageListListenerContainerImpl())
-                setAttachmentViewFactory(AttachmentViewFactory())
-                setMessageListItemStyle(style.itemStyle)
-            }
+        viewHolder = viewHolderFactory
             .createViewHolder(
                 binding.messageContainer,
                 MessageListItemViewTypeMapper.getViewTypeValue(messageItem)
@@ -187,6 +190,13 @@ internal class MessageOptionsDialogFragment : FullScreenDialogFragment() {
             isVisible = true
             configure(style)
             currentUser.value?.let { user -> setMessage(message, user) }
+
+            setOnUserReactionClickListener { user, reaction ->
+                userReactionClickHandler?.let {
+                    it.onUserReactionClick(message, user, reaction)
+                    dismiss()
+                }
+            }
         }
     }
 
@@ -320,6 +330,10 @@ internal class MessageOptionsDialogFragment : FullScreenDialogFragment() {
         fun onReactionClick(message: Message, reactionType: String)
     }
 
+    internal fun interface UserReactionClickHandler {
+        fun onUserReactionClick(message: Message, user: User, reaction: Reaction)
+    }
+
     internal fun interface ConfirmDeleteMessageClickHandler {
         fun onConfirmDeleteMessage(
             message: Message,
@@ -363,21 +377,36 @@ internal class MessageOptionsDialogFragment : FullScreenDialogFragment() {
         internal var messageListViewStyle: MessageListViewStyle? = null
 
         var messageArg: Message? = null
+        var messageViewHolderFactory: MessageListItemViewHolderFactory? = null
 
         fun newReactionOptionsInstance(
             message: Message,
             configuration: MessageOptionsView.Configuration,
             style: MessageListViewStyle,
+            messageViewHolderFactory: MessageListItemViewHolderFactory,
+            messageBackgroundFactory: MessageBackgroundFactory,
         ): MessageOptionsDialogFragment {
-            return newInstance(OptionsMode.REACTION_OPTIONS, message, configuration, style)
+            return newInstance(OptionsMode.REACTION_OPTIONS,
+                message,
+                configuration,
+                style,
+                messageViewHolderFactory,
+                messageBackgroundFactory)
         }
 
         fun newMessageOptionsInstance(
             message: Message,
             configuration: MessageOptionsView.Configuration,
             style: MessageListViewStyle,
+            messageViewHolderFactory: MessageListItemViewHolderFactory,
+            messageBackgroundFactory: MessageBackgroundFactory,
         ): MessageOptionsDialogFragment {
-            return newInstance(OptionsMode.MESSAGE_OPTIONS, message, configuration, style)
+            return newInstance(OptionsMode.MESSAGE_OPTIONS,
+                message,
+                configuration,
+                style,
+                messageViewHolderFactory,
+                messageBackgroundFactory)
         }
 
         private fun newInstance(
@@ -385,12 +414,27 @@ internal class MessageOptionsDialogFragment : FullScreenDialogFragment() {
             message: Message,
             configuration: MessageOptionsView.Configuration,
             style: MessageListViewStyle,
+            messageViewHolderFactory: MessageListItemViewHolderFactory,
+            messageBackgroundFactory: MessageBackgroundFactory,
         ): MessageOptionsDialogFragment {
             messageListViewStyle = style
+            this.messageViewHolderFactory =
+                messageViewHolderFactory.clone()
+                    .apply {
+                        /* Default listener. We don't want the message of this dialog to listen for clicks just like it was
+                        * a normal message inside MessageListView
+                        */
+                        setListenerContainer(null)
+                        decoratorProvider = MessageOptionsDecoratorProvider(
+                            style.itemStyle,
+                            style.replyMessageStyle,
+                            messageBackgroundFactory
+                        )
+                    }
             return MessageOptionsDialogFragment().apply {
                 arguments = bundleOf(
                     ARG_OPTIONS_MODE to optionsMode,
-                    ARG_OPTIONS_CONFIG to configuration
+                    ARG_OPTIONS_CONFIG to configuration,
                 )
                 // pass message via static field
                 messageArg = message

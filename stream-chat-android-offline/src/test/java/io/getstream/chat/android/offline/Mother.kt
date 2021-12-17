@@ -6,10 +6,12 @@ import com.flextrade.jfixture.JFixture
 import com.flextrade.kfixture.KFixture
 import io.getstream.chat.android.client.api.models.FilterObject
 import io.getstream.chat.android.client.api.models.NeutralFilterObject
+import io.getstream.chat.android.client.api.models.QuerySort
 import io.getstream.chat.android.client.events.ChannelDeletedEvent
 import io.getstream.chat.android.client.events.ChannelUpdatedByUserEvent
 import io.getstream.chat.android.client.events.ChannelUpdatedEvent
 import io.getstream.chat.android.client.events.MemberAddedEvent
+import io.getstream.chat.android.client.events.MemberRemovedEvent
 import io.getstream.chat.android.client.events.MessageReadEvent
 import io.getstream.chat.android.client.events.MessageUpdatedEvent
 import io.getstream.chat.android.client.events.NewMessageEvent
@@ -17,9 +19,12 @@ import io.getstream.chat.android.client.events.NotificationAddedToChannelEvent
 import io.getstream.chat.android.client.events.NotificationChannelDeletedEvent
 import io.getstream.chat.android.client.events.NotificationMarkReadEvent
 import io.getstream.chat.android.client.events.NotificationMessageNewEvent
+import io.getstream.chat.android.client.events.NotificationRemovedFromChannelEvent
 import io.getstream.chat.android.client.events.ReactionNewEvent
 import io.getstream.chat.android.client.events.TypingStartEvent
 import io.getstream.chat.android.client.events.TypingStopEvent
+import io.getstream.chat.android.client.events.UserStartWatchingEvent
+import io.getstream.chat.android.client.extensions.uploadId
 import io.getstream.chat.android.client.models.Attachment
 import io.getstream.chat.android.client.models.Channel
 import io.getstream.chat.android.client.models.ChannelInfo
@@ -35,6 +40,7 @@ import io.getstream.chat.android.client.models.Mute
 import io.getstream.chat.android.client.models.Reaction
 import io.getstream.chat.android.client.models.User
 import io.getstream.chat.android.client.utils.SyncStatus
+import io.getstream.chat.android.offline.message.attachment.generateUploadId
 import io.getstream.chat.android.offline.model.ChannelConfig
 import io.getstream.chat.android.offline.querychannels.QueryChannelsSpec
 import io.getstream.chat.android.offline.repository.database.ChatDatabase
@@ -57,6 +63,24 @@ import java.util.Date
 import java.util.concurrent.Executors
 
 private val fixture = JFixture()
+
+internal fun randomUserStartWatchingEvent(
+    type: String = randomString(),
+    createdAt: Date = randomDate(),
+    cid: String = randomString(),
+    watcherCount: Int = randomInt(),
+    channelType: String = randomString(),
+    channelId: String = randomString(),
+    user: User = randomUser(),
+) = UserStartWatchingEvent(
+    type = type,
+    createdAt = createdAt,
+    cid = cid,
+    watcherCount = watcherCount,
+    channelType = channelType,
+    channelId = channelId,
+    user = user,
+)
 
 internal fun randomChannelDeletedEvent(
     type: String = randomString(),
@@ -288,7 +312,11 @@ internal fun randomMessageUpdateEvent(
 
 internal fun randomAttachmentsWithFile(
     size: Int = positiveRandomInt(10),
-    creationFunction: (Int) -> Attachment = { Attachment(upload = randomFile()) },
+    creationFunction: (Int) -> Attachment = {
+        Attachment(upload = randomFile()).apply {
+            uploadId = generateUploadId()
+        }
+    },
 ): List<Attachment> = (1..size).map(creationFunction)
 
 internal fun randomUser(
@@ -416,7 +444,7 @@ internal fun randomChannelInfo(
     id: String? = randomString(),
     type: String = randomString(),
     memberCount: Int = randomInt(),
-    name: String? = randomString()
+    name: String? = randomString(),
 ): ChannelInfo = ChannelInfo(
     cid = cid,
     id = id,
@@ -686,7 +714,7 @@ internal fun randomConfig(
     connectEventsEnabled = connectEventsEnabled,
     searchEnabled = searchEnabled,
     isReactionsEnabled = isReactionsEnabled,
-    isRepliesEnabled = isRepliesEnabled,
+    isThreadEnabled = isRepliesEnabled,
     muteEnabled = muteEnabled,
     uploadsEnabled = uploadsEnabled,
     urlEnrichmentEnabled = urlEnrichmentEnabled,
@@ -705,15 +733,16 @@ internal fun randomChannelConfig(type: String = randomString(), config: Config =
 
 internal fun randomQueryChannelsSpec(
     filter: FilterObject = NeutralFilterObject,
+    sort: QuerySort<Channel> = QuerySort(),
     cids: Set<String> = emptySet(),
-): QueryChannelsSpec = QueryChannelsSpec(filter, cids)
+): QueryChannelsSpec = QueryChannelsSpec(filter, sort).apply { this.cids = cids }
 
 internal fun randomQueryChannelsEntity(
     id: String = randomString(),
     filter: FilterObject = NeutralFilterObject,
+    querySort: QuerySort<Channel> = QuerySort(),
     cids: List<String> = emptyList(),
-
-): QueryChannelsEntity = QueryChannelsEntity(id, filter, cids)
+): QueryChannelsEntity = QueryChannelsEntity(id, filter, querySort, cids)
 
 internal fun createRoomDB(dispatcher: CoroutineDispatcher): ChatDatabase =
     Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), ChatDatabase::class.java)
@@ -723,3 +752,75 @@ internal fun createRoomDB(dispatcher: CoroutineDispatcher): ChatDatabase =
         .setTransactionExecutor(Executors.newSingleThreadExecutor())
         .setQueryExecutor(dispatcher.asExecutor())
         .build()
+
+internal fun randomNotificationAddedToChannelEvent(
+    cid: String = randomString(),
+    channel: Channel = randomChannel()
+): NotificationAddedToChannelEvent {
+    return NotificationAddedToChannelEvent(
+        type = randomString(),
+        createdAt = Date(),
+        cid = cid,
+        channelType = randomString(),
+        channelId = randomString(),
+        channel = channel,
+        totalUnreadCount = randomInt(),
+        unreadChannels = randomInt(),
+    )
+}
+
+internal fun randomNotificationRemovedFromChannelEvent(
+    cid: String = randomString(),
+    channel: Channel = randomChannel()
+): NotificationRemovedFromChannelEvent {
+    return NotificationRemovedFromChannelEvent(
+        type = randomString(),
+        user = randomUser(),
+        createdAt = Date(),
+        cid = cid,
+        channelType = randomString(),
+        channelId = randomString(),
+        channel = channel,
+        member = randomMember()
+    )
+}
+
+internal fun randomNotificationMessageNewEvent(
+    cid: String = randomString(),
+    channel: Channel = randomChannel()
+): NotificationMessageNewEvent {
+    return NotificationMessageNewEvent(
+        type = randomString(),
+        createdAt = Date(),
+        cid = cid,
+        channelType = randomString(),
+        channelId = randomString(),
+        channel = channel,
+        message = randomMessage(),
+        totalUnreadCount = randomInt(),
+        unreadChannels = randomInt()
+    )
+}
+
+internal fun randomMemberAddedEvent(cid: String = randomString()): MemberAddedEvent {
+    return MemberAddedEvent(
+        type = randomString(),
+        createdAt = Date(),
+        user = randomUser(),
+        cid = cid,
+        channelType = randomString(),
+        channelId = randomString(),
+        member = randomMember()
+    )
+}
+
+internal fun randomMemberRemovedEvent(cid: String = randomString()): MemberRemovedEvent {
+    return MemberRemovedEvent(
+        type = randomString(),
+        createdAt = Date(),
+        user = randomUser(),
+        cid = cid,
+        channelType = randomString(),
+        channelId = randomString(),
+    )
+}

@@ -12,10 +12,14 @@ import io.getstream.chat.android.client.models.Member
 import io.getstream.chat.android.client.models.Message
 import io.getstream.chat.android.client.models.User
 import io.getstream.chat.android.client.utils.Result
+import io.getstream.chat.android.core.ExperimentalStreamChatApi
 import io.getstream.chat.android.offline.channel.ChannelController
+import io.getstream.chat.android.offline.experimental.channel.logic.ChannelLogic
+import io.getstream.chat.android.offline.experimental.channel.state.ChannelMutableState
 import io.getstream.chat.android.offline.integration.BaseDomainTest2
 import io.getstream.chat.android.test.TestCall
 import io.getstream.chat.android.test.randomString
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import org.amshove.kluent.`should be`
 import org.amshove.kluent.shouldBeEqualTo
@@ -23,6 +27,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
 
+@OptIn(ExperimentalStreamChatApi::class)
 @RunWith(AndroidJUnit4::class)
 internal class ChannelControllerImplTest : BaseDomainTest2() {
 
@@ -32,7 +37,20 @@ internal class ChannelControllerImplTest : BaseDomainTest2() {
 
     override fun setup() {
         super.setup()
-        channelController = ChannelController(channelType, channelId, clientMock, chatDomainImpl)
+        val mutableState = ChannelMutableState(
+            channelType,
+            channelId,
+            chatDomainImpl.scope,
+            chatDomainImpl.user,
+            MutableStateFlow(emptyMap())
+        )
+        channelController =
+            ChannelController(
+                mutableState,
+                ChannelLogic(mutableState, chatDomainImpl),
+                clientMock,
+                chatDomainImpl
+            )
     }
 
     @Test

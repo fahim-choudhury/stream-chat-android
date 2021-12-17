@@ -2,6 +2,7 @@ package io.getstream.chat.android.compose.ui.theme
 
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
 
@@ -15,7 +16,10 @@ import androidx.compose.ui.unit.dp
  * @param attachment The shape of attachments.
  * @param imageThumbnail The shape of image thumbnails, shown in selected attachments and image file attachments.
  * @param bottomSheet The shape of components used as bottom sheets.
+ * @param suggestionList The shape of suggestion list popup.
+ * @param attachmentSiteLabel The shape of the label showing website name over link attachments.
  */
+@Immutable
 public data class StreamShapes(
     public val avatar: Shape,
     public val myMessageBubble: Shape,
@@ -24,6 +28,8 @@ public data class StreamShapes(
     public val attachment: Shape,
     public val imageThumbnail: Shape,
     public val bottomSheet: Shape,
+    public val suggestionList: Shape,
+    public val attachmentSiteLabel: Shape,
 ) {
     public companion object {
         public fun defaultShapes(): StreamShapes = StreamShapes(
@@ -34,6 +40,8 @@ public data class StreamShapes(
             attachment = RoundedCornerShape(16.dp),
             imageThumbnail = RoundedCornerShape(8.dp),
             bottomSheet = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+            suggestionList = RoundedCornerShape(16.dp),
+            attachmentSiteLabel = RoundedCornerShape(topEnd = 14.dp)
         )
     }
 }

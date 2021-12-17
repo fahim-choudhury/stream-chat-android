@@ -13,7 +13,10 @@ import io.getstream.chat.android.client.models.EventType
 import io.getstream.chat.android.client.models.User
 import io.getstream.chat.android.client.utils.Result
 import io.getstream.chat.android.offline.ChatDomainImpl
+import io.getstream.chat.android.offline.SynchronizedCoroutineTest
 import io.getstream.chat.android.offline.channel.ChannelController
+import io.getstream.chat.android.offline.experimental.channel.logic.ChannelLogic
+import io.getstream.chat.android.offline.experimental.channel.state.ChannelMutableState
 import io.getstream.chat.android.offline.randomMessage
 import io.getstream.chat.android.offline.randomUser
 import io.getstream.chat.android.offline.repository.RepositoryFacade
@@ -22,19 +25,22 @@ import io.getstream.chat.android.test.TestCoroutineExtension
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.TestCoroutineScope
 import kotlinx.coroutines.test.runBlockingTest
 import org.amshove.kluent.`should be equal to`
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import java.util.Date
 
-internal class ChannelControllerTypingTests {
+internal class ChannelControllerTypingTests : SynchronizedCoroutineTest {
 
     companion object {
         @JvmField
         @RegisterExtension
         val testCoroutines = TestCoroutineExtension()
     }
+
+    override fun getTestScope(): TestCoroutineScope = testCoroutines.scope
 
     @Test
     fun `When clean is invoked Then old typing indicators should be removed`() = runBlockingTest {
@@ -88,29 +94,29 @@ internal class ChannelControllerTypingTests {
         }
 
     @Test
-    fun `When a message is successfully marked as read Then the second invocation should be ignored`() =
-        runBlockingTest {
-            val sut = Fixture(testCoroutines.scope, randomUser())
-                .givenReadEventsEnabled()
-                .get()
+    fun `When a message is successfully marked as read Then the second invocation should be ignored`() = coroutineTest {
+        val sut = Fixture(testCoroutines.scope, randomUser())
+            .givenReadEventsEnabled()
+            .get()
 
-            sut.upsertMessage(randomMessage())
+        sut.upsertMessage(randomMessage())
 
-            sut.markRead() `should be equal to` true
-            sut.markRead() `should be equal to` false
-        }
+        sut.markRead() `should be equal to` true
+        sut.markRead() `should be equal to` false
+    }
 
-    private class Fixture(scope: CoroutineScope, user: User) {
+    private class Fixture(private val scope: CoroutineScope, user: User) {
         private val repos: RepositoryFacade = mock()
         private val chatClient: ChatClient = mock()
         private val chatDomainImpl: ChatDomainImpl = mock()
         private val config: Config = mock()
         private val channelClient: ChannelClient = mock()
+        private val userFlow = MutableStateFlow(user)
 
         init {
             whenever(chatClient.channel(any(), any())) doReturn channelClient
             whenever(chatClient.channel(any())) doReturn channelClient
-            whenever(chatDomainImpl.user) doReturn MutableStateFlow(user)
+            whenever(chatDomainImpl.user) doReturn userFlow
             whenever(chatDomainImpl.job) doReturn Job()
             whenever(chatDomainImpl.scope) doReturn scope
             whenever(chatDomainImpl.repos) doReturn repos
@@ -134,9 +140,11 @@ internal class ChannelControllerTypingTests {
         }
 
         fun get(): ChannelController {
+            val mutableState =
+                ChannelMutableState("channelType", "channelId", scope, userFlow, MutableStateFlow(emptyMap()))
             return ChannelController(
-                "channelType",
-                "channelId",
+                mutableState,
+                ChannelLogic(mutableState, chatDomainImpl),
                 chatClient,
                 chatDomainImpl,
             )

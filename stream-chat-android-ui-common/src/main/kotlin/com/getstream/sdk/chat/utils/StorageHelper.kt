@@ -9,6 +9,7 @@ import android.webkit.MimeTypeMap
 import androidx.core.database.getLongOrNull
 import com.getstream.sdk.chat.model.AttachmentMetaData
 import com.getstream.sdk.chat.model.ModelType
+import io.getstream.chat.android.core.ExperimentalStreamChatApi
 import io.getstream.chat.android.core.internal.InternalStreamChatApi
 import java.io.File
 import java.text.SimpleDateFormat
@@ -16,6 +17,7 @@ import java.util.Date
 import java.util.Locale
 
 @InternalStreamChatApi
+@OptIn(ExperimentalStreamChatApi::class)
 public class StorageHelper {
     private val dateFormat = SimpleDateFormat(TIME_FORMAT, Locale.US)
     private val projection = arrayOf(
@@ -153,10 +155,14 @@ public class StorageHelper {
 
 private fun AttachmentMetaData.getTitleWithExtension(): String {
     val extension = title?.substringAfterLast('.')
+    val newTitle = title
+        ?.replace(" ", "_")
+        ?.replace("(", "_")
+        ?.replace(")", "_")
     return if (extension.isNullOrEmpty() && !mimeType.isNullOrEmpty()) {
-        "$title.${MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType)}"
+        "$newTitle.${MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType)}"
     } else {
         // TODO: Attachment's title should never be null. Review AttachmentMetaData class
-        title ?: ""
+        newTitle ?: ""
     }
 }

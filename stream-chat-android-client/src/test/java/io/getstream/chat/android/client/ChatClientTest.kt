@@ -59,8 +59,6 @@ internal class ChatClientTest {
             "hello.http",
             "cdn.http",
             "socket.url",
-            1000,
-            1000,
             false,
             ChatLogger.Config(ChatLogLevel.NOTHING, null),
         )
@@ -78,8 +76,10 @@ internal class ChatClientTest {
             socketStateService = socketStateService,
             queryChannelsPostponeHelper = queryChannelsPostponeHelper,
             userStateService = userStateService,
-            encryptedUserConfigStorage = mock(),
+            userCredentialStorage = mock(),
             tokenUtils = tokenUtils,
+            appContext = mock(),
+            scope = testCoroutines.scope,
         ).apply {
             connectUser(user, token).enqueue()
         }
@@ -191,5 +191,14 @@ internal class ChatClientTest {
         socket.sendEvent(eventC)
 
         result shouldBeEqualTo listOf(eventA)
+    }
+
+    @Test
+    fun `Given connected user When handle event with updated user Should updated user value`() {
+        val updateUser = user.copy(extraData = mutableMapOf()).apply { name = "updateUserName" }
+
+        socket.sendEvent(Mother.randomUserPresenceChangedEvent(updateUser))
+
+        client.getCurrentUser() shouldBeEqualTo updateUser
     }
 }

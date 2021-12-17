@@ -11,6 +11,7 @@ import io.getstream.chat.android.offline.repository.database.converter.ExtraData
 import io.getstream.chat.android.offline.repository.database.converter.FilterObjectConverter
 import io.getstream.chat.android.offline.repository.database.converter.ListConverter
 import io.getstream.chat.android.offline.repository.database.converter.MapConverter
+import io.getstream.chat.android.offline.repository.database.converter.QuerySortConverter
 import io.getstream.chat.android.offline.repository.database.converter.SetConverter
 import io.getstream.chat.android.offline.repository.database.converter.SyncStatusConverter
 import io.getstream.chat.android.offline.repository.domain.channel.ChannelDao
@@ -43,15 +44,15 @@ import io.getstream.chat.android.offline.repository.domain.user.UserEntity
         CommandInnerEntity::class,
         SyncStateEntity::class,
     ],
-    version = 48,
+    version = 52,
     exportSchema = false
 )
-
 @TypeConverters(
     FilterObjectConverter::class,
-    ExtraDataConverter::class,
     ListConverter::class,
     MapConverter::class,
+    QuerySortConverter::class,
+    ExtraDataConverter::class,
     SetConverter::class,
     SyncStatusConverter::class,
     DateConverter::class,

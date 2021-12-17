@@ -8,6 +8,10 @@ env:
   BUILD_CACHE_AWS_ACCESS_KEY_ID: ${{ secrets.BUILD_CACHE_AWS_ACCESS_KEY_ID }}
   BUILD_CACHE_AWS_SECRET_KEY: ${{ secrets.BUILD_CACHE_AWS_SECRET_KEY }}
 
+concurrency:
+  group: ${{ github.head_ref }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     name: ktlint
@@ -20,8 +24,11 @@ jobs:
         with:
           distribution: adopt
           java-version: 11
+      - uses: ./.github/actions/gradle-cache
+        with:
+          key-prefix: gradle-ktlint
       - name: ktlint
-        run: ./gradlew ktlintCheck
+        run: ./gradlew ktlintCheck --scan
 
   api_check:
     name: API check
@@ -34,8 +41,11 @@ jobs:
         with:
           distribution: adopt
           java-version: 11
+      - uses: ./.github/actions/gradle-cache
+        with:
+          key-prefix: gradle-APICheck
       - name: API check
-        run: ./gradlew apiCheck
+        run: ./gradlew apiCheck --scan
 
   debug_build:
     name: Debug build
@@ -48,8 +58,11 @@ jobs:
         with:
           distribution: adopt
           java-version: 11
+      - uses: ./.github/actions/gradle-cache
+        with:
+          key-prefix: gradle-build
       - name: Build
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleDebug --scan
 
   test:
     name: Unit tests
@@ -62,11 +75,15 @@ jobs:
         with:
           distribution: adopt
           java-version: 11
+      - uses: ./.github/actions/gradle-cache
+        with:
+          key-prefix: gradle-test
       - name: Unit tests
-        run: ./gradlew testDebug --stacktrace
+        run: ./scripts/ci-unit-tests.sh
       - name: Upload testDebugUnitTest results
         uses: actions/upload-artifact@v2
         if: failure()
         with:
           name: testDebugUnitTest
           path: ./**/build/reports/tests/testDebugUnitTest
+      

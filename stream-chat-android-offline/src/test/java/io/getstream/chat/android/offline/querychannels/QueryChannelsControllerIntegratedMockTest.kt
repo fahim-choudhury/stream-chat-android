@@ -9,7 +9,6 @@ import io.getstream.chat.android.client.models.Channel
 import io.getstream.chat.android.client.utils.Result
 import io.getstream.chat.android.offline.integration.BaseConnectedMockedTest
 import io.getstream.chat.android.test.TestCall
-import kotlinx.coroutines.runBlocking
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldNotBeNull
 import org.junit.Test
@@ -21,12 +20,12 @@ internal class QueryChannelsControllerIntegratedMockTest : BaseConnectedMockedTe
 
     @Test
     fun `Given some channels When received new message event Should return the same channels with proper orderings`() {
-        runBlocking {
+        coroutineTest {
             val queryChannelsController =
                 chatDomainImpl.queryChannels(data.filter1, QuerySort.desc(Channel::lastMessageAt))
             val channel1 = data.channel1.copy(lastMessageAt = Date(10000L))
             val channel2 = data.channel2.copy(lastMessageAt = Date(20000L))
-            whenever(client.queryChannels(any())) doReturn TestCall(Result(listOf(channel1, channel2)))
+            whenever(client.queryChannelsInternal(any())) doReturn TestCall(Result(listOf(channel1, channel2)))
 
             // 1. Query channels and check that live data emits a proper sorted list.
             queryChannelsController.query()

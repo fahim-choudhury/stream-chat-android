@@ -56,8 +56,6 @@ internal class MockClientBuilder(
             "hello.http",
             "cdn.http",
             "socket.url",
-            1000,
-            1000,
             false,
             ChatLogger.Config(ChatLogLevel.NOTHING, null)
         )
@@ -82,8 +80,10 @@ internal class MockClientBuilder(
             socketStateService = socketStateService,
             queryChannelsPostponeHelper = queryChannelsPostponeHelper,
             userStateService = userStateService,
-            encryptedUserConfigStorage = mock(),
+            userCredentialStorage = mock(),
             tokenUtils = tokenUtil,
+            appContext = mock(),
+            scope = testCoroutineScope,
         )
 
         client.connectUser(user, token).enqueue()

@@ -25,8 +25,10 @@ import io.getstream.chat.android.client.models.EventType
 import io.getstream.chat.android.client.models.User
 import io.getstream.chat.android.client.utils.Result
 import io.getstream.chat.android.client.utils.observable.Disposable
+import io.getstream.chat.android.core.ExperimentalStreamChatApi
 import io.getstream.chat.android.offline.ChatDomain
 import io.getstream.chat.android.offline.ChatDomainImpl
+import io.getstream.chat.android.offline.SynchronizedCoroutineTest
 import io.getstream.chat.android.offline.channel.ChannelController
 import io.getstream.chat.android.offline.model.ChannelConfig
 import io.getstream.chat.android.offline.querychannels.QueryChannelsController
@@ -41,6 +43,7 @@ import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.TestCoroutineScope
 import org.amshove.kluent.shouldBeFalse
 import org.amshove.kluent.shouldBeTrue
 import org.junit.After
@@ -52,7 +55,8 @@ import java.util.concurrent.Executors
 /**
  * Sets up a ChatDomain object with a mocked ChatClient.
  */
-internal open class BaseDomainTest2 {
+@ExperimentalStreamChatApi
+internal open class BaseDomainTest2 : SynchronizedCoroutineTest {
 
     /** a realistic set of chat data, please only add to this, don't update */
     var data = TestDataHelper()
@@ -87,6 +91,8 @@ internal open class BaseDomainTest2 {
     /** single threaded coroutines via DispatcherProvider */
     @get:Rule
     val instantTaskExecutorRule = InstantTaskExecutorRule()
+
+    override fun getTestScope(): TestCoroutineScope = testCoroutines.scope
 
     @Before
     @CallSuper
@@ -127,7 +133,8 @@ internal open class BaseDomainTest2 {
             DisconnectedEvent(EventType.CONNECTION_DISCONNECTED, Date())
         }
 
-        val result = Result(listOf(data.channel1))
+        val queryChannelsResult = Result.success(listOf(data.channel1))
+        val queryChannelResult = Result.success(data.channel1)
         channelClientMock = mock {
             on { query(any()) } doReturn TestCall(
                 Result(data.channel1)
@@ -148,7 +155,9 @@ internal open class BaseDomainTest2 {
                 }
             }
             on { getSyncHistory(any(), any()) } doReturn TestCall(eventResults)
-            on { queryChannels(any()) } doReturn TestCall(result)
+            on { queryChannels(any()) } doReturn TestCall(queryChannelsResult)
+            on { queryChannelsInternal(any()) } doReturn TestCall(queryChannelsResult)
+            on { queryChannelInternal(any(), any(), any()) } doReturn TestCall(queryChannelResult)
             on { channel(any(), any()) } doReturn channelClientMock
             on { channel(any()) } doReturn channelClientMock
             on { sendReaction(any(), any<Boolean>()) } doReturn TestCall(
@@ -184,7 +193,9 @@ internal open class BaseDomainTest2 {
             .database(db)
             .offlineEnabled()
             .userPresenceEnabled()
+            .retryPolicy(NoRetryPolicy())
             .buildImpl()
+        ChatDomain.instance = chatDomainImpl
 
         WorkManagerTestInitHelper.initializeTestWorkManager(context)
         // TODO: a chat domain without a user set should raise a clear error
@@ -195,7 +206,6 @@ internal open class BaseDomainTest2 {
         // manually configure the user since client is mocked
         chatDomainImpl.setUser(data.user1)
 
-        chatDomainImpl.retryPolicy = NoRetryPolicy()
         chatDomain = chatDomainImpl
 
         chatDomainImpl.scope.launch {
@@ -209,7 +219,7 @@ internal open class BaseDomainTest2 {
 
         channelControllerImpl.updateDataFromChannel(data.channel1)
 
-        query = QueryChannelsSpec(data.filter1)
+        query = QueryChannelsSpec(data.filter1, QuerySort())
 
         queryControllerImpl = chatDomainImpl.queryChannels(data.filter1, QuerySort())
     }

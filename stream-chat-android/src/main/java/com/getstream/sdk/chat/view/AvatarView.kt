@@ -16,7 +16,6 @@ import com.getstream.sdk.chat.images.StreamImageLoader.ImageTransformation.Circl
 import com.getstream.sdk.chat.view.messages.AvatarStyle
 import io.getstream.chat.android.client.models.Channel
 import io.getstream.chat.android.client.models.User
-import io.getstream.chat.android.client.models.image
 import io.getstream.chat.android.client.models.initials
 import io.getstream.chat.android.core.internal.coroutines.DispatcherProvider
 import kotlinx.coroutines.GlobalScope
@@ -56,6 +55,7 @@ public class AvatarView @JvmOverloads constructor(
         style: AvatarStyle,
         generateAvatarDrawable: suspend () -> AvatarDrawable
     ) {
+        // TODO create a local scope that we actually cancel at some point?
         GlobalScope.launch(DispatcherProvider.Main) {
             layoutParams?.apply {
                 width = style.avatarWidth

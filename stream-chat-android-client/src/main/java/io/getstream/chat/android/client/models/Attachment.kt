@@ -29,20 +29,36 @@ public data class Attachment(
      * Leaving this property empty means that there is no file to upload for
      * this attachment.
      */
-    @Transient
     var upload: File? = null,
 
-    @Transient
     var uploadState: UploadState? = null,
 
-    @Transient
     override var extraData: MutableMap<String, Any> = mutableMapOf(),
 
 ) : CustomObject {
 
+    /**
+     * Represents various states in attachment upload lifecycle.
+     */
     public sealed class UploadState {
-        public object InProgress : UploadState()
+        /**
+         * Idle state before attachment starts to upload.
+         */
+        public object Idle : UploadState()
+
+        /**
+         * State representing attachment upload progress.
+         */
+        public data class InProgress(val bytesUploaded: Long, val totalBytes: Long) : UploadState()
+
+        /**
+         * State indicating that the attachment was uploaded successfully
+         */
         public object Success : UploadState()
+
+        /**
+         * State indicating that the attachment upload failed.
+         */
         public data class Failed(val error: ChatError) : UploadState()
     }
 }

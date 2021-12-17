@@ -140,9 +140,12 @@ messageListView.setEnterThreadListener { message: Message ->
 messageListView.setAttachmentDownloadClickListener { attachment: Attachment ->
     // Listen to events when download click for an attachment happens
 }
+setUserReactionClickListener{ message: Message, user: User, reaction: Reaction ->
+    // Listen to clicks on user reactions on the message options overlay
+}
 ```
 
-Other available listeners for `MessageListView` can be found [here](https://getstream.github.io/stream-chat-android/stream-chat-android-ui-components/stream-chat-android-ui-components/io.getstream.chat.android.ui.message.list.adapter/-message-list-listener-container/index.html).
+Other available listeners for `MessageListView` can be found [here](https://getstream.github.io/stream-chat-android/stream-chat-android-ui-components/io.getstream.chat.android.ui.message.list.adapter/-message-list-listener-container/).
 
 ## Customization
 
@@ -180,13 +183,13 @@ In order to do that, we need to add additional attributes to `MessageListView`:
 
 ### Using Style Transformations
 
-Both `MessageListView` and its ViewHolders can be configured programmatically (a list of supported customizations can be found [here](https://getstream.github.io/stream-chat-android/stream-chat-android-ui-components/stream-chat-android-ui-components/io.getstream.chat.android.ui.message.list/-message-list-view-style/index.html) and [here](https://getstream.github.io/stream-chat-android/stream-chat-android-ui-components/stream-chat-android-ui-components/io.getstream.chat.android.ui.message.list/-message-list-item-style/index.html)).
+Both `MessageListView` and its ViewHolders can be configured programmatically (a list of supported customizations can be found [here](https://getstream.github.io/stream-chat-android/stream-chat-android-ui-components/io.getstream.chat.android.ui.message.list/-message-list-view-style/) and [here](https://getstream.github.io/stream-chat-android/stream-chat-android-ui-components/io.getstream.chat.android.ui.message.list/-message-list-item-style/)).
 
 As an example, let's apply the green style from the previous section, but this time programmatically:
 
 | Before | After |
 | --- | --- |
-|![message style before](../../assets/message_style_programatically_message_before.png)|![message style after](../../assets/message_style_programatically_message_after.png)|
+|![message style before](../../assets/message_style_programmatically_message_before.png)|![message style after](../../assets/message_style_programmatically_message_after.png)|
 
 We are going to use a custom `TransformStyle.messageListItemStyleTransformer`:
 
@@ -209,7 +212,7 @@ As another example, let's modify the default view which allows scrolling to the 
 
 | Before | After |
 | --- | --- |
-|![message style programmatically before](../../assets/message_style_programatically_fab_before.png)|![message style programmatically after](../../assets/message_style_programatically_fab_after.png)|
+|![message style programmatically before](../../assets/message_style_programmatically_fab_before.png)|![message style programmatically after](../../assets/message_style_programmatically_fab_after.png)|
 
 To achieve this effect we need to provide this custom `TransformStyle.messageListStyleTransformer`:
 
@@ -264,7 +267,7 @@ You can configure the messages to start at the top or the bottom of the view (De
 |![messages at the bottom](../../assets/messages_at_the_top.png)|![messages at the top](../../assets/messages_at_the_bottom.png)|
 
 :::note
-Messages' position doesn't affect the stack which is always from bottom to top.
+Messages' position doesn't affect the stack. The default is from bottom to top. if you would like to change it, use the method `setCustomLinearLayoutManager` and set a `LinearLayoutManager` with your desired definitions.
 :::
 
 

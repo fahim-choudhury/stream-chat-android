@@ -1,23 +1,23 @@
 package io.getstream.chat.android.client.notifications.handler
 
-import io.getstream.chat.android.client.R
-
+/**
+ * Push notifications configuration class
+ */
 public data class NotificationConfig(
-    val notificationChannelId: Int = R.string.stream_chat_notification_channel_id,
-    val notificationChannelName: Int = R.string.stream_chat_notification_channel_name,
-    val smallIcon: Int = R.drawable.stream_ic_notification,
-    val errorCaseNotificationTitle: Int = R.string.stream_chat_notification_title,
-    val errorCaseNotificationContent: Int = R.string.stream_chat_notification_content,
-    val loadNotificationDataChannelName: Int = R.string.stream_chat_load_notification_data_title,
-    val loadNotificationDataIcon: Int = R.drawable.stream_ic_notification,
-    val loadNotificationDataTitle: Int = R.string.stream_chat_load_notification_data_title,
-    val notificationGroupSummaryContentText: Int = R.string.stream_chat_notification_group_summary_content_text,
-    val errorNotificationGroupSummaryTitle: Int = R.string.stream_chat_error_notification_group_summary_content_text,
-    val errorNotificationGroupSummaryContentText: Int = R.string.stream_chat_error_notification_group_summary_content_text,
-    @Deprecated(
-        message = "Notifications are grouped by channel by default. This behavior can be changed by handling the notification",
-        level = DeprecationLevel.WARNING,
-    ) val shouldGroupNotifications: Boolean = false,
+    /**
+     * Enables/disables push notifications on the device.
+     * Device's token won't be registered if push notifications are disabled.
+     */
     val pushNotificationsEnabled: Boolean = true,
+
+    /**
+     * A list of generators responsible for providing the information needed to register a device
+     * @see [PushDeviceGenerator]
+     */
     val pushDeviceGenerators: List<PushDeviceGenerator> = listOf(),
+
+    /**
+     * Allows enabling/disabling showing notification after receiving a push message.
+     */
+    val shouldShowNotificationOnPush: () -> Boolean = { true },
 )

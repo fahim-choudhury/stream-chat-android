@@ -9,9 +9,13 @@ import io.getstream.chat.android.client.models.Device
 import io.getstream.chat.android.client.models.PushProvider
 import io.getstream.chat.android.client.notifications.handler.PushDeviceGenerator
 import io.getstream.chat.android.core.internal.coroutines.DispatcherProvider
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 
+/**
+ * Generator responsible for providing information needed to register Huawei push notifications provider
+ */
 public class HuaweiPushDeviceGenerator(context: Context, private val appId: String) :
     PushDeviceGenerator {
     private val hmsInstanceId: HmsInstanceId = HmsInstanceId.getInstance(context)
@@ -24,6 +28,8 @@ public class HuaweiPushDeviceGenerator(context: Context, private val appId: Stri
 
     override fun asyncGenerateDevice(onDeviceGenerated: (device: Device) -> Unit) {
         logger.logI("Getting Huawei token")
+
+        @OptIn(DelicateCoroutinesApi::class)
         GlobalScope.launch(DispatcherProvider.IO) {
             hmsInstanceId.getToken(appId, "HCM")
                 .takeUnless { it.isNullOrBlank() }

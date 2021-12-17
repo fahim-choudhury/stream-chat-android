@@ -6,7 +6,6 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.CAMERA" />
 
     <application>
         <provider
@@ -16,11 +15,7 @@
             tools:node="merge"
             >
             <meta-data
-                android:name="io.getstream.chat.android.ui.common.internal.ChatUIInitializer"
-                android:value="androidx.startup"
-                />
-            <meta-data
-                android:name="io.getstream.chat.android.ui.common.internal.ImageLoaderFactoryInitializer"
+                android:name="io.getstream.chat.android.ui.common.ChatUIInitializer"
                 android:value="androidx.startup"
                 />
         </provider>

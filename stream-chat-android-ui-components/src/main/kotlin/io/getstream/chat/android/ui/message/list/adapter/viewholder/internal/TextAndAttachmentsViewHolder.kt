@@ -1,14 +1,9 @@
 package io.getstream.chat.android.ui.message.list.adapter.viewholder.internal
 
-import android.content.Context
 import android.view.ViewGroup
-import android.widget.TextView
 import androidx.core.view.isVisible
 import com.getstream.sdk.chat.adapter.MessageListItem
-import io.getstream.chat.android.client.extensions.uploadId
 import io.getstream.chat.android.client.models.Attachment
-import io.getstream.chat.android.client.uploader.ProgressTrackerFactory
-import io.getstream.chat.android.core.internal.coroutines.DispatcherProvider
 import io.getstream.chat.android.ui.R
 import io.getstream.chat.android.ui.common.extensions.internal.streamThemeInflater
 import io.getstream.chat.android.ui.common.internal.LongClickFriendlyLinkMovementMethod
@@ -17,20 +12,17 @@ import io.getstream.chat.android.ui.databinding.StreamUiItemTextAndAttachmentsBi
 import io.getstream.chat.android.ui.message.list.MessageListItemStyle
 import io.getstream.chat.android.ui.message.list.adapter.MessageListItemPayloadDiff
 import io.getstream.chat.android.ui.message.list.adapter.MessageListListenerContainer
+import io.getstream.chat.android.ui.message.list.adapter.MessageListListenerContainerImpl
 import io.getstream.chat.android.ui.message.list.adapter.internal.DecoratedBaseMessageItemViewHolder
 import io.getstream.chat.android.ui.message.list.adapter.viewholder.attachment.AttachmentViewFactory
 import io.getstream.chat.android.ui.message.list.adapter.viewholder.decorator.internal.Decorator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.launch
 
 internal class TextAndAttachmentsViewHolder(
     parent: ViewGroup,
     decorators: List<Decorator>,
-    private val listeners: MessageListListenerContainer,
+    private val listeners: MessageListListenerContainer?,
     private val markdown: ChatMarkdown,
     private val attachmentViewFactory: AttachmentViewFactory,
     private val style: MessageListItemStyle,
@@ -43,29 +35,62 @@ internal class TextAndAttachmentsViewHolder(
 
     private var scope: CoroutineScope? = null
 
+    /**
+     * We override the Message passed to listeners here with the up-to-date Message
+     * object from the [data] property of the base ViewHolder.
+     *
+     * This is required because these listeners will be invoked by the AttachmentViews,
+     * which don't always have an up-to-date Message object in them. This is due to the
+     * optimization that we don't re-create the AttachmentViews when the attachments
+     * of the Message are unchanged. However, other properties (like reactions) might
+     * change, and these listeners should receive a fully up-to-date Message.
+     */
+    private fun modifiedListeners(listeners: MessageListListenerContainer?): MessageListListenerContainer? {
+        return listeners?.let { container ->
+            MessageListListenerContainerImpl(
+                messageClickListener = { container.messageClickListener.onMessageClick(data.message) },
+                messageLongClickListener = { container.messageLongClickListener.onMessageLongClick(data.message) },
+                messageRetryListener = { container.messageRetryListener.onRetryMessage(data.message) },
+                threadClickListener = { container.threadClickListener.onThreadClick(data.message) },
+                attachmentClickListener = { _, attachment ->
+                    container.attachmentClickListener.onAttachmentClick(data.message, attachment)
+                },
+                attachmentDownloadClickListener = container.attachmentDownloadClickListener::onAttachmentDownloadClick,
+                reactionViewClickListener = { container.reactionViewClickListener.onReactionViewClick(data.message) },
+                userClickListener = { container.userClickListener.onUserClick(data.message.user) },
+                giphySendListener = { _, action ->
+                    container.giphySendListener.onGiphySend(data.message, action)
+                },
+                linkClickListener = container.linkClickListener::onLinkClick
+            )
+        }
+    }
+
     init {
         binding.run {
-            root.setOnClickListener {
-                listeners.messageClickListener.onMessageClick(data.message)
+            listeners?.let { container ->
+                root.setOnClickListener {
+                    container.messageClickListener.onMessageClick(data.message)
+                }
+                reactionsView.setReactionClickListener {
+                    container.reactionViewClickListener.onReactionViewClick(data.message)
+                }
+                footnote.setOnThreadClickListener {
+                    container.threadClickListener.onThreadClick(data.message)
+                }
+                root.setOnLongClickListener {
+                    container.messageLongClickListener.onMessageLongClick(data.message)
+                    true
+                }
+                avatarView.setOnClickListener {
+                    container.userClickListener.onUserClick(data.message.user)
+                }
+                LongClickFriendlyLinkMovementMethod.set(
+                    textView = messageText,
+                    longClickTarget = root,
+                    onLinkClicked = container.linkClickListener::onLinkClick
+                )
             }
-            reactionsView.setReactionClickListener {
-                listeners.reactionViewClickListener.onReactionViewClick(data.message)
-            }
-            footnote.setOnThreadClickListener {
-                listeners.threadClickListener.onThreadClick(data.message)
-            }
-            root.setOnLongClickListener {
-                listeners.messageLongClickListener.onMessageLongClick(data.message)
-                true
-            }
-            avatarView.setOnClickListener {
-                listeners.userClickListener.onUserClick(data.message.user)
-            }
-            LongClickFriendlyLinkMovementMethod.set(
-                textView = messageText,
-                longClickTarget = root,
-                onLinkClicked = listeners.linkClickListener::onLinkClick
-            )
         }
     }
 
@@ -75,14 +100,17 @@ internal class TextAndAttachmentsViewHolder(
         binding.messageText.isVisible = data.message.text.isNotEmpty()
         markdown.setText(binding.messageText, data.message.text)
 
-        setupAttachment(data)
+        if (diff?.attachments != false) {
+            setupAttachment(data)
+        }
+
         setupUploads(data)
     }
 
     private fun setupAttachment(data: MessageListItem.MessageItem) {
         with(binding.attachmentsContainer) {
             removeAllViews()
-            addView(attachmentViewFactory.createAttachmentView(data, listeners, style, binding.root))
+            addView(attachmentViewFactory.createAttachmentView(data, modifiedListeners(listeners), style, binding.root))
         }
     }
 
@@ -97,22 +125,18 @@ internal class TextAndAttachmentsViewHolder(
     }
 
     private fun setupUploads(data: MessageListItem.MessageItem) {
-        val uploadIdList: List<String> = data.message.attachments
-            .filter { attachment -> attachment.uploadState == Attachment.UploadState.InProgress }
-            .mapNotNull(Attachment::uploadId)
-
-        val needUpload = uploadIdList.isNotEmpty()
-
-        if (needUpload) {
-            clearScope()
-            val scope = CoroutineScope(DispatcherProvider.Main)
-            this.scope = scope
-
-            scope.launch {
-                trackFilesSent(context, uploadIdList, binding.sentFiles)
-            }
-        } else {
+        val totalAttachmentsCount = data.message.attachments.size
+        val completedAttachmentsCount =
+            data.message.attachments.count { it.uploadState == null || it.uploadState == Attachment.UploadState.Success }
+        if (completedAttachmentsCount == totalAttachmentsCount) {
             binding.sentFiles.isVisible = false
+        } else {
+            binding.sentFiles.text =
+                context.getString(
+                    R.string.stream_ui_message_list_attachment_uploading,
+                    completedAttachmentsCount,
+                    totalAttachmentsCount
+                )
         }
     }
 
@@ -122,40 +146,5 @@ internal class TextAndAttachmentsViewHolder(
 
     override fun onAttachedToWindow() {
         setupUploads(data)
-    }
-
-    private companion object {
-        private suspend fun trackFilesSent(
-            context: Context,
-            uploadIdList: List<String>,
-            sentFilesView: TextView,
-        ) {
-            val filesSent = 0
-            val totalFiles = uploadIdList.size
-
-            sentFilesView.isVisible = true
-            sentFilesView.text =
-                context.getString(R.string.stream_ui_message_list_attachment_uploading, filesSent, totalFiles)
-
-            val completionFlows: List<Flow<Boolean>> = uploadIdList.map { uploadId ->
-                ProgressTrackerFactory.getOrCreate(uploadId).isComplete()
-            }
-
-            combine(completionFlows) { isCompleteArray ->
-                isCompleteArray.count { isComplete -> isComplete }
-            }.collect { completedCount ->
-                if (completedCount == totalFiles) {
-                    sentFilesView.text =
-                        context.getString(R.string.stream_ui_message_list_attachment_upload_complete)
-                } else {
-                    sentFilesView.text =
-                        context.getString(
-                            R.string.stream_ui_message_list_attachment_uploading,
-                            completedCount,
-                            totalFiles
-                        )
-                }
-            }
-        }
     }
 }

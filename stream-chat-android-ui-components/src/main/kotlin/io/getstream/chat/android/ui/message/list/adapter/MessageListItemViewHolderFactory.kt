@@ -34,9 +34,6 @@ import io.getstream.chat.android.ui.message.list.adapter.viewholder.internal.Thr
 public open class MessageListItemViewHolderFactory {
     internal lateinit var decoratorProvider: DecoratorProvider
 
-    protected lateinit var listenerContainer: MessageListListenerContainer
-        private set
-
     protected lateinit var attachmentViewFactory: AttachmentViewFactory
         private set
 
@@ -46,7 +43,10 @@ public open class MessageListItemViewHolderFactory {
 
     private lateinit var giphyViewHolderStyle: GiphyViewHolderStyle
 
-    internal fun setListenerContainer(listenerContainer: MessageListListenerContainer) {
+    protected var listenerContainer: MessageListListenerContainer? = null
+        private set
+
+    internal fun setListenerContainer(listenerContainer: MessageListListenerContainer?) {
         this.listenerContainer = listenerContainer
     }
 
@@ -67,6 +67,34 @@ public open class MessageListItemViewHolderFactory {
     }
 
     private val markdown: ChatMarkdown by lazy { ChatUI.markdown }
+
+    /*
+    * This is necessary to maintain the configuration of this factory, but without sharing the instance. Please use
+    * clone when sharing the factory between MessageListView and MessageOptionsDialogFragment
+    */
+    internal fun clone(): MessageListItemViewHolderFactory {
+        val newFactory = MessageListItemViewHolderFactory()
+
+        if (::decoratorProvider.isInitialized) {
+            newFactory.decoratorProvider = decoratorProvider
+        }
+        if (::attachmentViewFactory.isInitialized) {
+            newFactory.attachmentViewFactory = attachmentViewFactory
+        }
+        if (::style.isInitialized) {
+            newFactory.style = style
+        }
+        if (::messageReplyStyle.isInitialized) {
+            newFactory.messageReplyStyle = messageReplyStyle
+        }
+        if (::giphyViewHolderStyle.isInitialized) {
+            newFactory.giphyViewHolderStyle = giphyViewHolderStyle
+        }
+
+        newFactory.listenerContainer = listenerContainer
+
+        return newFactory
+    }
 
     /**
      * Returns a view type value based on the type and contents of the given [item].
@@ -145,7 +173,10 @@ public open class MessageListItemViewHolderFactory {
     protected fun createGiphyMessageItemViewHolder(
         parentView: ViewGroup,
     ): BaseMessageItemViewHolder<MessageListItem.MessageItem> {
-        return GiphyViewHolder(parentView, decoratorProvider.decorators, listenerContainer, giphyViewHolderStyle)
+        return GiphyViewHolder(parentView,
+            decoratorProvider.decorators,
+            listenerContainer,
+            giphyViewHolderStyle)
     }
 
     protected fun createSystemMessageItemViewHolder(

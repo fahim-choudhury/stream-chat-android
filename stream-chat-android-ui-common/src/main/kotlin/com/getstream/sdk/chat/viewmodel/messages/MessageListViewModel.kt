@@ -3,14 +3,20 @@ package com.getstream.sdk.chat.viewmodel.messages
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.Observer
 import androidx.lifecycle.Transformations
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.asLiveData
+import androidx.lifecycle.viewModelScope
+import com.getstream.sdk.chat.adapter.MessageListItem
 import com.getstream.sdk.chat.enums.GiphyAction
 import com.getstream.sdk.chat.view.messages.MessageListItemWrapper
 import com.getstream.sdk.chat.viewmodel.messages.MessageListViewModel.DateSeparatorHandler
 import io.getstream.chat.android.client.ChatClient
 import io.getstream.chat.android.client.call.enqueue
 import io.getstream.chat.android.client.errors.ChatError
+import io.getstream.chat.android.client.logger.ChatLogger
+import io.getstream.chat.android.client.logger.TaggedLogger
 import io.getstream.chat.android.client.models.Attachment
 import io.getstream.chat.android.client.models.Channel
 import io.getstream.chat.android.client.models.ChannelUserRead
@@ -19,9 +25,18 @@ import io.getstream.chat.android.client.models.Message
 import io.getstream.chat.android.client.models.Reaction
 import io.getstream.chat.android.client.models.User
 import io.getstream.chat.android.client.utils.Result
-import io.getstream.chat.android.core.internal.exhaustive
+import io.getstream.chat.android.client.utils.internal.toggle.ToggleService
+import io.getstream.chat.android.core.ExperimentalStreamChatApi
 import io.getstream.chat.android.livedata.ChatDomain
 import io.getstream.chat.android.livedata.controller.ChannelController
+import io.getstream.chat.android.offline.experimental.channel.state.MessagesState
+import io.getstream.chat.android.offline.experimental.channel.thread.state.ThreadState
+import io.getstream.chat.android.offline.experimental.extensions.asReferenced
+import io.getstream.chat.android.offline.extensions.downloadAttachment
+import io.getstream.chat.android.offline.extensions.loadOlderMessages
+import io.getstream.chat.android.offline.extensions.setMessageForReply
+import io.getstream.chat.android.offline.thread.ThreadController
+import kotlinx.coroutines.flow.map
 import kotlin.properties.Delegates
 import io.getstream.chat.android.livedata.utils.Event as EventWrapper
 
@@ -34,6 +49,7 @@ import io.getstream.chat.android.livedata.utils.Event as EventWrapper
  * @param domain Entry point for all livedata & offline operations.
  * @param client Entry point for all low-level operations.
  */
+@OptIn(ExperimentalStreamChatApi::class)
 public class MessageListViewModel @JvmOverloads constructor(
     private val cid: String,
     private val messageId: String? = null,
@@ -72,6 +88,8 @@ public class MessageListViewModel @JvmOverloads constructor(
 
     public val user: LiveData<User?> = domain.user
 
+    private val logger: TaggedLogger = ChatLogger.get("MessageListViewModel")
+
     private var dateSeparatorHandler: DateSeparatorHandler? =
         DateSeparatorHandler { previousMessage: Message?, message: Message ->
             if (previousMessage == null) {
@@ -91,6 +109,70 @@ public class MessageListViewModel @JvmOverloads constructor(
         }
 
     init {
+        if (ToggleService.isEnabled(ToggleService.TOGGLE_KEY_OFFLINE)) {
+            initWithOfflinePlugin()
+        } else {
+            initWithChatDomain()
+        }
+    }
+
+    private fun initWithOfflinePlugin() {
+        stateMerger.addSource(MutableLiveData(State.Loading)) { stateMerger.value = it }
+
+        val channelState = client.asReferenced().watchChannel(cid, MESSAGES_LIMIT).asState(viewModelScope)
+
+        ChatClient.dismissChannelNotifications(
+            channelType = channelState.channelType,
+            channelId = channelState.channelId
+        )
+
+        val channelDataLiveData = channelState.channelData.asLiveData()
+        _channel.addSource(channelDataLiveData) {
+            _channel.value = channelState.toChannel()
+            // Channel should be propagated only once because it's used to initialize MessageListView
+            _channel.removeSource(channelDataLiveData)
+        }
+        val typingIds = channelState.typing.map { (_, idList) -> idList }.asLiveData()
+
+        messageListData = MessageListItemLiveData(
+            user,
+            channelState.messages.asLiveData(),
+            channelState.reads.asLiveData(),
+            typingIds,
+            false,
+            dateSeparatorHandler,
+        )
+        _reads.addSource(channelState.reads.asLiveData()) { _reads.value = it }
+        _loadMoreLiveData.addSource(channelState.loadingOlderMessages.asLiveData()) { _loadMoreLiveData.value = it }
+
+        stateMerger.apply {
+            val messagesStateLiveData = channelState.messagesState.asLiveData()
+            addSource(messagesStateLiveData) { messageState ->
+                when (messageState) {
+                    MessagesState.Loading,
+                    MessagesState.NoQueryActive,
+                    -> value = State.Loading
+                    MessagesState.OfflineNoResults -> value = State.Result(MessageListItemWrapper())
+                    is MessagesState.Result -> {
+                        removeSource(messagesStateLiveData)
+                        onNormalModeEntered()
+                    }
+                }
+            }
+        }
+        messageId.takeUnless { it.isNullOrBlank() }?.let { targetMessageId ->
+            stateMerger.observeForever(object : Observer<State> {
+                override fun onChanged(state: State?) {
+                    if (state is State.Result) {
+                        onEvent(Event.ShowMessage(targetMessageId))
+                        stateMerger.removeObserver(this)
+                    }
+                }
+            })
+        }
+    }
+
+    private fun initWithChatDomain() {
         stateMerger.addSource(MutableLiveData(State.Loading)) { stateMerger.value = it }
 
         domain.watchChannel(cid, MESSAGES_LIMIT).enqueue { channelControllerResult ->
@@ -117,37 +199,32 @@ public class MessageListViewModel @JvmOverloads constructor(
                 _reads.addSource(channelController.reads) { _reads.value = it }
                 _loadMoreLiveData.addSource(channelController.loadingOlderMessages) { _loadMoreLiveData.value = it }
 
-                if (messageId.isNullOrEmpty()) {
-                    stateMerger.apply {
-                        addSource(channelController.messagesState) { messageState ->
-                            when (messageState) {
-                                is ChannelController.MessagesState.NoQueryActive,
-                                is ChannelController.MessagesState.Loading,
-                                -> value = State.Loading
-                                is ChannelController.MessagesState.OfflineNoResults ->
-                                    value = State.Result(MessageListItemWrapper())
-                                is ChannelController.MessagesState.Result -> {
-                                    removeSource(channelController.messagesState)
-                                    onNormalModeEntered()
-                                }
+                stateMerger.apply {
+                    addSource(channelController.messagesState) { messageState ->
+                        when (messageState) {
+                            is ChannelController.MessagesState.NoQueryActive,
+                            is ChannelController.MessagesState.Loading,
+                            -> value = State.Loading
+                            is ChannelController.MessagesState.OfflineNoResults ->
+                                value = State.Result(MessageListItemWrapper())
+                            is ChannelController.MessagesState.Result -> {
+                                removeSource(channelController.messagesState)
+                                onNormalModeEntered()
                             }
                         }
                     }
-                } else {
-                    domain.loadMessageById(
-                        cid,
-                        messageId,
-                        MESSAGES_LIMIT,
-                        MESSAGES_LIMIT
-                    ).enqueue {
-                        if (it.isSuccess) {
-                            _targetMessage.value = it.data()
-                            onNormalModeEntered()
-                        } else {
-                            stateMerger.value = State.Result(MessageListItemWrapper())
-                        }
-                    }
                 }
+                messageId.takeUnless { it.isNullOrBlank() }
+                    ?.let { targetMessageId ->
+                        stateMerger.observeForever(object : Observer<State> {
+                            override fun onChanged(state: State?) {
+                                if (state is State.Result) {
+                                    onEvent(Event.ShowMessage(targetMessageId))
+                                    stateMerger.removeObserver(this)
+                                }
+                            }
+                        })
+                    }
             }
         }
     }
@@ -190,7 +267,11 @@ public class MessageListViewModel @JvmOverloads constructor(
                 onEndRegionReached()
             }
             is Event.LastMessageRead -> {
-                domain.markRead(cid).enqueue()
+                domain.markRead(cid).enqueue(
+                    onError = { chatError ->
+                        logger.logE("Could not mark cid: $cid as read. Error message: ${chatError.message}. Cause message: ${chatError.cause?.message}")
+                    }
+                )
             }
             is Event.ThreadModeEntered -> {
                 onThreadModeEntered(event.parentMessage)
@@ -199,43 +280,66 @@ public class MessageListViewModel @JvmOverloads constructor(
                 onBackButtonPressed()
             }
             is Event.DeleteMessage -> {
-                domain.deleteMessage(event.message, false).enqueue()
+                domain.deleteMessage(event.message, event.hard)
+                    .enqueue(
+                        onError = { chatError ->
+                            logger.logE("Could not delete message: ${chatError.message}, Hard: ${event.hard}. Cause: ${chatError.cause?.message}")
+                            _errorEvents.postValue(EventWrapper(ErrorEvent.DeleteMessageError(chatError)))
+                        }
+                    )
             }
             is Event.FlagMessage -> {
                 client.flagMessage(event.message.id).enqueue { result ->
                     event.resultHandler(result)
                     if (result.isError) {
+                        logger.logE("Could not flag message: ${result.error().message}")
                         _errorEvents.postValue(EventWrapper(ErrorEvent.FlagMessageError(result.error())))
                     }
                 }
             }
             is Event.PinMessage -> {
                 client.pinMessage(Message(id = event.message.id)).enqueue(
-                    onError = { _errorEvents.postValue(EventWrapper(ErrorEvent.PinMessageError(it))) }
+                    onError = { chatError ->
+                        logger.logE("Could not flag message: ${chatError.message}. Cause: ${chatError.cause?.message}")
+                        _errorEvents.postValue(EventWrapper(ErrorEvent.PinMessageError(chatError)))
+                    }
                 )
             }
             is Event.UnpinMessage -> {
                 client.unpinMessage(Message(id = event.message.id)).enqueue(
-                    onError = { _errorEvents.postValue(EventWrapper(ErrorEvent.UnpinMessageError(it))) }
+                    onError = { chatError ->
+                        logger.logE("Could not unpin message: ${chatError.message}. Cause: ${chatError.cause?.message}")
+                        _errorEvents.postValue(EventWrapper(ErrorEvent.UnpinMessageError(chatError)))
+                    }
                 )
             }
             is Event.GiphyActionSelected -> {
                 onGiphyActionSelected(event)
             }
             is Event.RetryMessage -> {
-                domain.sendMessage(event.message).enqueue()
+                domain.sendMessage(event.message).enqueue(
+                    onError = { chatError ->
+                        logger.logE("(Retry) Could not send message: ${chatError.message}. Cause: ${chatError.cause?.message}")
+                    }
+                )
             }
             is Event.MessageReaction -> {
                 onMessageReaction(event.message, event.reactionType, event.enforceUnique)
             }
             is Event.MuteUser -> {
                 client.muteUser(event.user.id).enqueue(
-                    onError = { _errorEvents.postValue(EventWrapper(ErrorEvent.MuteUserError(it))) }
+                    onError = { chatError ->
+                        logger.logE("Could not mute user: ${chatError.message}")
+                        _errorEvents.postValue(EventWrapper(ErrorEvent.MuteUserError(chatError)))
+                    }
                 )
             }
             is Event.UnmuteUser -> {
                 client.unmuteUser(event.user.id).enqueue(
-                    onError = { _errorEvents.postValue(EventWrapper(ErrorEvent.UnmuteUserError(it))) }
+                    onError = { chatError ->
+                        logger.logE("Could not unmute user: ${chatError.message}")
+                        _errorEvents.postValue(EventWrapper(ErrorEvent.UnmuteUserError(chatError)))
+                    }
                 )
             }
             is Event.BlockUser -> {
@@ -245,24 +349,49 @@ public class MessageListViewModel @JvmOverloads constructor(
                     reason = null,
                     timeout = null,
                 ).enqueue(
-                    onError = { _errorEvents.postValue(EventWrapper(ErrorEvent.BlockUserError(it))) }
+                    onError = { chatError ->
+                        logger.logE("Could not block user: ${chatError.message}")
+                        _errorEvents.postValue(EventWrapper(ErrorEvent.BlockUserError(chatError)))
+                    }
                 )
             }
             is Event.ReplyMessage -> {
-                domain.setMessageForReply(event.cid, event.repliedMessage).enqueue()
+                client.setMessageForReply(event.cid, event.repliedMessage).enqueue(
+                    onError = { chatError ->
+                        logger.logE("Could not reply message: ${chatError.message}. Cause: ${chatError.cause?.message}")
+                    }
+                )
             }
             is Event.DownloadAttachment -> {
-                domain.downloadAttachment(event.attachment).enqueue()
+                client.downloadAttachment(event.attachment).enqueue(
+                    onError = { chatError ->
+                        logger.logE("Attachment download error: ${chatError.message}. Cause: ${chatError.cause?.message}")
+                    }
+                )
             }
             is Event.ShowMessage -> {
-                domain.loadMessageById(
-                    cid,
-                    event.messageId,
-                    MESSAGES_LIMIT,
-                    MESSAGES_LIMIT
-                ).enqueue {
-                    if (it.isSuccess) {
-                        _targetMessage.value = it.data()
+                val message = messageListData?.value
+                    ?.items
+                    ?.asSequence()
+                    ?.filterIsInstance<MessageListItem.MessageItem>()
+                    ?.find { messageItem -> messageItem.message.id == event.messageId }
+                    ?.message
+
+                if (message != null) {
+                    _targetMessage.value = message
+                } else {
+                    domain.loadMessageById(
+                        cid,
+                        event.messageId,
+                        MESSAGES_LIMIT,
+                        MESSAGES_LIMIT
+                    ).enqueue { result ->
+                        if (result.isSuccess) {
+                            _targetMessage.value = result.data()
+                        } else {
+                            val error = result.error()
+                            logger.logE("Could not load message: ${error.message}. Cause: ${error.cause?.message}")
+                        }
                     }
                 }
             }
@@ -273,17 +402,23 @@ public class MessageListViewModel @JvmOverloads constructor(
                     event.messageId,
                     MESSAGES_LIMIT,
                     MESSAGES_LIMIT
-                ).enqueue {
-                    if (it.isSuccess) {
-                        val message = it.data()
-                        message.attachments.removeAll {
+                ).enqueue { result ->
+                    if (result.isSuccess) {
+                        val message = result.data()
+                        message.attachments.removeAll { attachment ->
                             if (attachmentToBeDeleted.assetUrl != null) {
-                                it.assetUrl == attachmentToBeDeleted.assetUrl
+                                attachment.assetUrl == attachmentToBeDeleted.assetUrl
                             } else {
-                                it.imageUrl == attachmentToBeDeleted.imageUrl
+                                attachment.imageUrl == attachmentToBeDeleted.imageUrl
                             }
                         }
-                        domain.editMessage(message).enqueue()
+                        domain.editMessage(message).enqueue(
+                            onError = { chatError ->
+                                logger.logE("Could not edit message to remove its attachments: ${chatError.message}. Cause: ${chatError.cause?.message}")
+                            }
+                        )
+                    } else {
+                        logger.logE("Could not load message: ${result.error()}")
                     }
                 }
             }
@@ -295,14 +430,17 @@ public class MessageListViewModel @JvmOverloads constructor(
                     messageId,
                     MESSAGES_LIMIT,
                     MESSAGES_LIMIT
-                ).enqueue {
-                    if (it.isSuccess) {
-                        val message = it.data()
+                ).enqueue { result ->
+                    if (result.isSuccess) {
+                        val message = result.data()
                         onEvent(Event.ReplyMessage(cid, message))
+                    } else {
+                        val error = result.error()
+                        logger.logE("Could not load message to reply: ${error.message}. Cause: ${error.cause?.message}")
                     }
                 }
             }
-        }.exhaustive
+        }
     }
 
     /**
@@ -328,15 +466,33 @@ public class MessageListViewModel @JvmOverloads constructor(
     private fun onGiphyActionSelected(event: Event.GiphyActionSelected) {
         when (event.action) {
             GiphyAction.SEND -> {
-                domain.sendGiphy(event.message).enqueue()
+                domain.sendGiphy(event.message).enqueue(
+                    onError = { chatError ->
+                        logger.logE(
+                            "Could not send giphy for message id: ${event.message.id}. Error: ${chatError.message}. Cause: ${chatError.cause?.message}"
+                        )
+                    }
+                )
             }
             GiphyAction.SHUFFLE -> {
-                domain.shuffleGiphy(event.message).enqueue()
+                domain.shuffleGiphy(event.message).enqueue(
+                    onError = { chatError ->
+                        logger.logE(
+                            "Could not shuffle giphy for message id: ${event.message.id}. Error: ${chatError.message}. Cause: ${chatError.cause?.message}"
+                        )
+                    }
+                )
             }
             GiphyAction.CANCEL -> {
-                domain.cancelMessage(event.message).enqueue()
+                domain.cancelMessage(event.message).enqueue(
+                    onError = { chatError ->
+                        logger.logE(
+                            "Could not cancel giphy for message id: ${event.message.id}. Error: ${chatError.message}. Cause: ${chatError.cause?.message}"
+                        )
+                    }
+                )
             }
-        }.exhaustive
+        }
     }
 
     private fun onEndRegionReached() {
@@ -344,7 +500,7 @@ public class MessageListViewModel @JvmOverloads constructor(
             when (this) {
                 is Mode.Normal -> {
                     messageListData?.loadingMoreChanged(true)
-                    domain.loadOlderMessages(cid, MESSAGES_LIMIT).enqueue {
+                    client.loadOlderMessages(cid, MESSAGES_LIMIT).enqueue {
                         messageListData?.loadingMoreChanged(false)
                     }
                 }
@@ -355,7 +511,7 @@ public class MessageListViewModel @JvmOverloads constructor(
                             threadListData?.loadingMoreChanged(false)
                         }
                 }
-            }.exhaustive
+            }
         }
     }
 
@@ -368,11 +524,43 @@ public class MessageListViewModel @JvmOverloads constructor(
                 is Mode.Thread -> {
                     onNormalModeEntered()
                 }
-            }.exhaustive
+            }
         }
     }
 
+    /**
+     * Handles an event to move to thread mode.
+     *
+     * @param parentMessage The message with the thread we want to observe.
+     */
     private fun onThreadModeEntered(parentMessage: Message) {
+        if (ToggleService.isEnabled(ToggleService.TOGGLE_KEY_OFFLINE)) {
+            loadThreadWithOfflinePlugin(parentMessage)
+        } else {
+            loadThreadWithChatDomain(parentMessage)
+        }
+    }
+
+    /**
+     * Move [currentMode] to [Mode.Thread] and loads thread data using ChatClient directly. The data is observed by
+     * using [ThreadState].
+     *
+     * @param parentMessage The message with the thread we want to observe.
+     */
+    private fun loadThreadWithOfflinePlugin(parentMessage: Message) {
+        val state = client.asReferenced().getReplies(parentMessage.id).asState(viewModelScope)
+        currentMode = Mode.Thread(parentMessage)
+        setThreadMessages(state.messages.asLiveData())
+    }
+
+    /**
+     * Move [currentMode] to [Mode.Thread] and loads thread data using ChatDomain approach. The data is loaded by
+     * fetching the [ThreadController] first, based on the [parentMessage], after which we observe specific data from
+     * the thread.
+     *
+     * @param parentMessage The message with the thread we want to observe.
+     */
+    private fun loadThreadWithChatDomain(parentMessage: Message) {
         val parentId: String = parentMessage.id
         domain.getThread(cid, parentId).enqueue { threadControllerResult ->
             if (threadControllerResult.isSuccess) {
@@ -391,9 +579,21 @@ public class MessageListViewModel @JvmOverloads constructor(
             score = 1
         }
         if (message.ownReactions.any { it.type == reactionType }) {
-            domain.deleteReaction(cid, reaction).enqueue()
+            domain.deleteReaction(cid, reaction).enqueue(
+                onError = { chatError ->
+                    logger.logE(
+                        "Could not delete reaction for message with id: ${reaction.messageId} Error: ${chatError.message}. Cause: ${chatError.cause?.message}"
+                    )
+                }
+            )
         } else {
-            domain.sendReaction(cid, reaction, enforceUnique = enforceUnique).enqueue()
+            domain.sendReaction(cid, reaction, enforceUnique = enforceUnique).enqueue(
+                onError = { chatError ->
+                    logger.logE(
+                        "Could not send reaction for message with id: ${reaction.messageId} Error: ${chatError.message}. Cause: ${chatError.cause?.message}"
+                    )
+                }
+            )
         }
     }
 
@@ -413,7 +613,7 @@ public class MessageListViewModel @JvmOverloads constructor(
         public object EndRegionReached : Event()
         public object LastMessageRead : Event()
         public data class ThreadModeEntered(val parentMessage: Message) : Event()
-        public data class DeleteMessage(val message: Message) : Event()
+        public data class DeleteMessage(val message: Message, val hard: Boolean = false) : Event()
         public data class FlagMessage(val message: Message, val resultHandler: ((Result<Flag>) -> Unit) = { }) : Event()
         public data class PinMessage(val message: Message) : Event()
         public data class UnpinMessage(val message: Message) : Event()
@@ -447,6 +647,7 @@ public class MessageListViewModel @JvmOverloads constructor(
         public data class BlockUserError(override val chatError: ChatError) : ErrorEvent(chatError)
         public data class PinMessageError(override val chatError: ChatError) : ErrorEvent(chatError)
         public data class UnpinMessageError(override val chatError: ChatError) : ErrorEvent(chatError)
+        public data class DeleteMessageError(override val chatError: ChatError) : ErrorEvent(chatError)
     }
 
     public fun interface DateSeparatorHandler {

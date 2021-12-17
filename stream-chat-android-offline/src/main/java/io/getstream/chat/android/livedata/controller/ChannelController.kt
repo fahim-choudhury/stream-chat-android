@@ -9,7 +9,6 @@ import io.getstream.chat.android.client.models.TypingEvent
 import io.getstream.chat.android.client.models.User
 import io.getstream.chat.android.livedata.ChatDomainImpl
 import io.getstream.chat.android.offline.channel.ChannelData
-import io.getstream.chat.android.offline.usecase.SetMessageForReply
 
 /**
  * The Channel Controller exposes convenient livedata objects to build your chat interface
@@ -88,8 +87,6 @@ public sealed interface ChannelController {
     /**
      * Contains the Message that is selected to be replied to in this channel,
      * or null if no such selection exists.
-     *
-     * See [SetMessageForReply].
      */
     public val repliedMessage: LiveData<Message?>
 
@@ -121,7 +118,7 @@ public sealed interface ChannelController {
 
         /** The list of messages, loaded either from offline storage or an API call.
          * Observe chatDomain.online to know if results are currently up to date
-         * @see ChatDomainImpl.online
+         * @see ChatDomainImpl.connectionState
          */
         public data class Result(val messages: List<Message>) : MessagesState()
     }

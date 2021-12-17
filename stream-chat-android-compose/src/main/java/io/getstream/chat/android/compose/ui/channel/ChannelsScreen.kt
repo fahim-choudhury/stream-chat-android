@@ -1,15 +1,18 @@
 package io.getstream.chat.android.compose.ui.channel
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.material.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -26,12 +29,15 @@ import io.getstream.chat.android.compose.R
 import io.getstream.chat.android.compose.handlers.SystemBackPressedHandler
 import io.getstream.chat.android.compose.state.channel.list.DeleteConversation
 import io.getstream.chat.android.compose.state.channel.list.LeaveGroup
+import io.getstream.chat.android.compose.state.channel.list.MuteChannel
+import io.getstream.chat.android.compose.state.channel.list.UnmuteChannel
 import io.getstream.chat.android.compose.state.channel.list.ViewInfo
 import io.getstream.chat.android.compose.ui.channel.header.ChannelListHeader
 import io.getstream.chat.android.compose.ui.channel.info.ChannelInfo
 import io.getstream.chat.android.compose.ui.channel.list.ChannelList
-import io.getstream.chat.android.compose.ui.common.SearchInput
-import io.getstream.chat.android.compose.ui.common.SimpleDialog
+import io.getstream.chat.android.compose.ui.components.SearchInput
+import io.getstream.chat.android.compose.ui.components.SimpleDialog
+import io.getstream.chat.android.compose.ui.theme.ChatTheme
 import io.getstream.chat.android.compose.viewmodel.channel.ChannelListViewModel
 import io.getstream.chat.android.compose.viewmodel.channel.ChannelViewModelFactory
 import io.getstream.chat.android.offline.ChatDomain
@@ -60,7 +66,7 @@ public fun ChannelsScreen(
     querySort: QuerySort<Channel> = QuerySort.desc("last_updated"),
     title: String = "Stream Chat",
     isShowingHeader: Boolean = true,
-    isShowingSearch: Boolean = true,
+    isShowingSearch: Boolean = false,
     onHeaderClickAction: () -> Unit = {},
     onItemClick: (Channel) -> Unit = {},
     onViewChannelInfoAction: (Channel) -> Unit = {},
@@ -76,9 +82,9 @@ public fun ChannelsScreen(
         )
     )
 
-    val selectedChannel = listViewModel.selectedChannel
+    val selectedChannel by remember { listViewModel.selectedChannel }
     val user by listViewModel.user.collectAsState()
-    val isNetworkAvailable by listViewModel.isOnline.collectAsState()
+    val connectionState by listViewModel.connectionState.collectAsState()
 
     SystemBackPressedHandler(isEnabled = true) {
         if (selectedChannel != null) {
@@ -91,53 +97,62 @@ public fun ChannelsScreen(
     var searchQuery by rememberSaveable { mutableStateOf("") }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize()) {
-
-            if (isShowingHeader) {
-                ChannelListHeader(
-                    onHeaderActionClick = onHeaderClickAction,
-                    currentUser = user,
-                    title = title,
-                    isNetworkAvailable = isNetworkAvailable
-                )
-            }
-
-            if (isShowingSearch) {
-                SearchInput(
-                    modifier = Modifier
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                        .fillMaxWidth(),
-                    query = searchQuery,
-                    onSearchStarted = {},
-                    onValueChange = {
-                        searchQuery = it
-                        listViewModel.setSearchQuery(it)
-                    },
-                )
-            }
-
-            ChannelList(
-                modifier = Modifier
-                    .fillMaxSize(),
-                viewModel = listViewModel,
-                onChannelClick = onItemClick,
-                onChannelLongClick = {
-                    listViewModel.selectChannel(it)
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            topBar = {
+                if (isShowingHeader) {
+                    ChannelListHeader(
+                        onHeaderActionClick = onHeaderClickAction,
+                        currentUser = user,
+                        title = title,
+                        connectionState = connectionState
+                    )
                 }
-            )
+            }
+
+        ) {
+            Column(Modifier.fillMaxSize()) {
+                if (isShowingSearch) {
+                    SearchInput(
+                        modifier = Modifier
+                            .background(color = ChatTheme.colors.appBackground)
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                            .fillMaxWidth(),
+                        query = searchQuery,
+                        onSearchStarted = {},
+                        onValueChange = {
+                            searchQuery = it
+                            listViewModel.setSearchQuery(it)
+                        },
+                    )
+                }
+
+                ChannelList(
+                    modifier = Modifier.fillMaxSize(),
+                    viewModel = listViewModel,
+                    onChannelClick = onItemClick,
+                    onChannelLongClick = {
+                        listViewModel.selectChannel(it)
+                    }
+                )
+            }
         }
 
-        if (selectedChannel != null) {
+        val currentSelectedChannel = selectedChannel
+        if (currentSelectedChannel != null) {
             ChannelInfo(
                 modifier = Modifier
                     .fillMaxWidth()
                     .wrapContentHeight()
                     .align(Alignment.BottomCenter),
-                selectedChannel = selectedChannel,
-                user = user,
+                selectedChannel = currentSelectedChannel,
+                currentUser = user,
+                isMuted = listViewModel.isChannelMuted(currentSelectedChannel.cid),
                 onChannelOptionClick = { action ->
                     when (action) {
                         is ViewInfo -> onViewChannelInfoAction(action.channel)
+                        is MuteChannel -> listViewModel.muteChannel(action.channel)
+                        is UnmuteChannel -> listViewModel.unmuteChannel(action.channel)
                         else -> listViewModel.performChannelAction(action)
                     }
                 }
@@ -149,10 +164,12 @@ public fun ChannelsScreen(
         if (activeAction is LeaveGroup) {
             SimpleDialog(
                 modifier = Modifier.padding(16.dp),
-                title = stringResource(id = R.string.stream_compose_leave_group),
+                title = stringResource(
+                    id = R.string.stream_compose_channel_info_leave_group_confirmation_title
+                ),
                 message = stringResource(
-                    id = R.string.stream_compose_leave_group_text,
-                    activeAction.channel.id
+                    id = R.string.stream_compose_channel_info_leave_group_confirmation_message,
+                    ChatTheme.channelNameFormatter.formatChannelName(activeAction.channel)
                 ),
                 onPositiveAction = { listViewModel.leaveGroup(activeAction.channel) },
                 onDismiss = { listViewModel.dismissChannelAction() }
@@ -160,10 +177,12 @@ public fun ChannelsScreen(
         } else if (activeAction is DeleteConversation) {
             SimpleDialog(
                 modifier = Modifier.padding(16.dp),
-                title = stringResource(id = R.string.stream_compose_delete_conversation),
+                title = stringResource(
+                    id = R.string.stream_compose_channel_info_delete_conversation_confirmation_title
+                ),
                 message = stringResource(
-                    id = R.string.stream_compose_delete_conversation_text,
-                    activeAction.channel.id
+                    id = R.string.stream_compose_channel_info_delete_conversation_confirmation_message,
+                    ChatTheme.channelNameFormatter.formatChannelName(activeAction.channel)
                 ),
                 onPositiveAction = { listViewModel.deleteConversation(activeAction.channel) },
                 onDismiss = { listViewModel.dismissChannelAction() }
