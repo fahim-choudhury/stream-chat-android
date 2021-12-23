@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">stream-compose-livestream-sample</string>
+
+    <string name="you_are_about_to_give_reward">You are about to give this reward!</string>
+    <string name="got_it">Got it!</string>
+    <string name="follow">Follow</string>
+
+    <!--Accessibility-->
+    <string name="accessibility_reward_name">Reward %s</string>
+    <string name="accessibility_give_reward">Give reward %s for %d</string>
 </resources>
