@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import io.getstream.chat.android.client.models.User
@@ -39,7 +41,9 @@ import io.getstream.chat.android.compose.livestream.sample.ui.messages.MessageIt
 import io.getstream.chat.android.compose.livestream.sample.ui.player.VideoPlayer
 import io.getstream.chat.android.compose.livestream.sample.ui.reward.RewardsContent
 import io.getstream.chat.android.compose.livestream.sample.ui.reward.RewardsIntegration
+import io.getstream.chat.android.compose.livestream.sample.ui.theme.LiveStreamAppTheme
 import io.getstream.chat.android.compose.state.messages.list.MessageItemState
+import io.getstream.chat.android.compose.ui.components.composer.MessageInput
 import io.getstream.chat.android.compose.ui.messages.composer.MessageComposer
 import io.getstream.chat.android.compose.ui.messages.list.MessageList
 import io.getstream.chat.android.compose.ui.theme.ChatTheme
@@ -69,113 +73,125 @@ class MessagesActivity : AppCompatActivity() {
             var isRewardsContentExpanded by remember { mutableStateOf(false) }
             var isChannelDescriptionExpanded by remember { mutableStateOf(false) }
 
-            ChatTheme {
-                // A surface container using the 'background' color from the theme
-                Surface(color = MaterialTheme.colors.background) {
-                    setContent {
-                        ChatTheme {
-                            Scaffold(bottomBar = {
-                                Column(
+            // A surface container using the 'background' color from the theme
+            Surface(color = MaterialTheme.colors.background) {
+                setContent {
+                    LiveStreamAppTheme {
+                        Scaffold(bottomBar = {
+                            Column(
+                                modifier = Modifier
+                                    .wrapContentHeight()
+                                    .fillMaxWidth()
+                                    .animateContentSize()
+                            ) {
+                                MessageComposer(
                                     modifier = Modifier
-                                        .wrapContentHeight()
                                         .fillMaxWidth()
-                                        .animateContentSize()
-                                ) {
-                                    MessageComposer(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .wrapContentHeight(),
-                                        viewModel = composerViewModel,
-                                        onCancelAction = {},
-                                        onMentionSelected = {},
-                                        onCommandSelected = {},
-                                        onCommandsClick = {},
-                                        commandPopupContent = {},
-                                        onAlsoSendToChannelSelected = {},
-                                        integrations = {
-                                            RewardsIntegration(
-                                                modifier = Modifier
-                                                    .padding(horizontal = 8.dp)
-                                                    .align(Alignment.CenterVertically),
-                                                rewardCount = 1,
-                                                onClick = {
-                                                    isRewardsContentExpanded =
-                                                        !isRewardsContentExpanded
-                                                }
-                                            )
-                                        }
-                                    )
-
-                                    val rewardContentHeight =
-                                        if (isRewardsContentExpanded) 200.dp else 0.dp
-
-                                    RewardsContent(
-                                        channelName = listViewModel.channel.name,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(rewardContentHeight),
-                                        cells = GridCells.Fixed(3),
-                                        rewardList = mockRewards(),
-                                        onRewardSelected = {}
-                                    )
-                                }
-                            }) { paddingValues ->
-                                Column(
-                                    Modifier
-                                        .fillMaxSize()
-                                        .animateContentSize()
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(250.dp)
-                                            .background(Color.Black),
-                                    ) {
-                                        // TODO set this up so that the URL is sent through extra data so that we can emulate streaming channels better
-                                        VideoPlayer(
-                                            videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-                                            onError = {}
+                                        .height(IntrinsicSize.Min),
+                                    viewModel = composerViewModel,
+                                    onCancelAction = {},
+                                    onMentionSelected = {},
+                                    onCommandSelected = {},
+                                    onCommandsClick = {},
+                                    commandPopupContent = {},
+                                    onAlsoSendToChannelSelected = {},
+                                    input = { messageComposerState ->
+                                        MessageInput(
+                                            messageComposerState = messageComposerState,
+                                            onValueChange = { composerViewModel.setMessageInput(it) },
+                                            onAttachmentRemoved = { composerViewModel.removeSelectedAttachment(it) },
+                                            innerTrailingContent = {
+                                                Icon(
+                                                    painter = painterResource(id = R.drawable.ic_emoji),
+                                                    contentDescription = LocalContext.current.getString(R.string.accessibility_expand_emoji_reactions)
+                                                )
+                                            }
                                         )
-
-                                        Surface(
+                                    },
+                                    integrations = {
+                                        RewardsIntegration(
                                             modifier = Modifier
-                                                .padding(12.dp)
-                                                .align(Alignment.TopEnd)
-                                                .clickable {
-                                                    isChannelDescriptionExpanded =
-                                                        !isChannelDescriptionExpanded
-                                                },
-                                            color = Color.Black,
-                                            shape = CircleShape
-                                        ) {
-                                            Icon(
-                                                modifier = Modifier
-                                                    .padding(1.dp),
-                                                painter = painterResource(id = R.drawable.ic_info),
-                                                contentDescription = null,
-                                                tint = Color.White,
-                                            )
-                                        }
+                                                .padding(horizontal = 8.dp)
+                                                .height(IntrinsicSize.Min)
+                                                .align(Alignment.CenterVertically),
+                                            rewardCount = 1,
+                                            onClick = {
+                                                isRewardsContentExpanded =
+                                                    !isRewardsContentExpanded
+                                            }
+                                        )
                                     }
-                                    ChannelDescription(
-                                        modifier = Modifier
-                                            .background(ChatTheme.colors.appBackground)
-                                            .height(if (isChannelDescriptionExpanded) 50.dp else 0.dp)
-                                            .padding(horizontal = 8.dp)
-                                            .animateContentSize(),
-                                        channel = listViewModel.channel,
-                                        currentUser = User()
+                                )
+
+                                val rewardContentHeight =
+                                    if (isRewardsContentExpanded) 200.dp else 0.dp
+
+                                RewardsContent(
+                                    channelName = listViewModel.channel.name,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(rewardContentHeight),
+                                    cells = GridCells.Fixed(3),
+                                    rewardList = mockRewards(),
+                                    onRewardSelected = {}
+                                )
+                            }
+                        }) { paddingValues ->
+                            Column(
+                                Modifier
+                                    .fillMaxSize()
+                                    .animateContentSize()
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(250.dp)
+                                        .background(Color.Black),
+                                ) {
+                                    // TODO set this up so that the URL is sent through extra data so that we can emulate streaming channels better
+                                    VideoPlayer(
+                                        videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+                                        onError = {}
                                     )
 
-                                    MessageList(
+                                    Surface(
                                         modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(bottom = paddingValues.calculateBottomPadding()),
-                                        viewModel = listViewModel,
+                                            .padding(12.dp)
+                                            .align(Alignment.TopEnd)
+                                            .clickable {
+                                                isChannelDescriptionExpanded =
+                                                    !isChannelDescriptionExpanded
+                                            },
+                                        color = Color.Black,
+                                        shape = CircleShape
                                     ) {
-                                        if (it is MessageItemState)
-                                            MessageItem(messageItemState = it)
+                                        Icon(
+                                            modifier = Modifier
+                                                .padding(1.dp),
+                                            painter = painterResource(id = R.drawable.ic_info),
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                        )
                                     }
+                                }
+                                ChannelDescription(
+                                    modifier = Modifier
+                                        .background(ChatTheme.colors.appBackground)
+                                        .height(if (isChannelDescriptionExpanded) 50.dp else 0.dp)
+                                        .padding(horizontal = 8.dp)
+                                        .animateContentSize(),
+                                    channel = listViewModel.channel,
+                                    currentUser = User()
+                                )
+
+                                MessageList(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(bottom = paddingValues.calculateBottomPadding()),
+                                    viewModel = listViewModel,
+                                ) {
+                                    if (it is MessageItemState)
+                                        MessageItem(messageItemState = it)
                                 }
                             }
                         }
