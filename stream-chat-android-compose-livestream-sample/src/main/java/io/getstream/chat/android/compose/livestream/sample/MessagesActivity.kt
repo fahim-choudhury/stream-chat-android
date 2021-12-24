@@ -37,7 +37,9 @@ import androidx.compose.ui.unit.dp
 import io.getstream.chat.android.client.models.User
 import io.getstream.chat.android.compose.livestream.sample.model.mocks.mockRewards
 import io.getstream.chat.android.compose.livestream.sample.ui.messages.ChannelDescription
+import io.getstream.chat.android.compose.livestream.sample.ui.messages.ChatSettingsIcon
 import io.getstream.chat.android.compose.livestream.sample.ui.messages.MessageItem
+import io.getstream.chat.android.compose.livestream.sample.ui.messages.SendButton
 import io.getstream.chat.android.compose.livestream.sample.ui.player.VideoPlayer
 import io.getstream.chat.android.compose.livestream.sample.ui.reward.RewardsContent
 import io.getstream.chat.android.compose.livestream.sample.ui.reward.RewardsIntegration
@@ -97,6 +99,10 @@ class MessagesActivity : AppCompatActivity() {
                                     onAlsoSendToChannelSelected = {},
                                     input = { messageComposerState ->
                                         MessageInput(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 8.dp)
+                                                .weight(1f),
                                             messageComposerState = messageComposerState,
                                             onValueChange = { composerViewModel.setMessageInput(it) },
                                             onAttachmentRemoved = { composerViewModel.removeSelectedAttachment(it) },
@@ -120,6 +126,23 @@ class MessagesActivity : AppCompatActivity() {
                                                     !isRewardsContentExpanded
                                             }
                                         )
+                                    },
+                                    trailingContent = { messageComposerState ->
+                                        if (messageComposerState.inputValue.isNotBlank())
+                                            SendButton(
+                                                value = messageComposerState.inputValue,
+                                                coolDownTime = messageComposerState.coolDownTime,
+                                                attachments = messageComposerState.attachments,
+                                                validationErrors = messageComposerState.validationErrors,
+                                                onSendMessage = { input, attachments ->
+                                                    val message = composerViewModel.buildNewMessage(input, attachments)
+
+                                                    composerViewModel.sendMessage(message = message)
+                                                }
+                                            )
+                                        else ChatSettingsIcon {
+                                            // TODO open settings sheet when done
+                                        }
                                     }
                                 )
 

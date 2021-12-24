@@ -9,4 +9,5 @@
     <string name="accessibility_reward_name">Reward %s</string>
     <string name="accessibility_give_reward">Give reward %s for %d</string>
     <string name="accessibility_expand_emoji_reactions">Expand emoji reactions</string>
+    <string name="accessibility_open_chat_settings">Open chat settings</string>
 </resources>
