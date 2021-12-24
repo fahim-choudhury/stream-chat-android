@@ -18,7 +18,7 @@ class LivestreamSampleApp : Application() {
             .logLevel(ChatLogLevel.ALL)
             .build()
         ChatDomain.Builder(client, applicationContext)
-            .userPresenceEnabled()
+            .offlineDisabled()
             .build()
     }
 
