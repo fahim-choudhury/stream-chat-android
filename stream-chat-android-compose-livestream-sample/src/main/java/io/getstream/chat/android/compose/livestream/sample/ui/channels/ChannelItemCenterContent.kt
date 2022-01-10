@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import io.getstream.chat.android.compose.ui.theme.ChatTheme
 
 @Composable
 fun ChannelItemCenterContent(
@@ -32,9 +33,17 @@ fun ChannelItemCenterContent(
         )
 
         if (channelDescription != null)
-            Text(modifier = Modifier.padding(horizontal = 2.dp), text = channelDescription)
+            Text(
+                modifier = Modifier.padding(horizontal = 2.dp),
+                text = channelDescription,
+                color = ChatTheme.colors.textHighEmphasis
+            )
 
         if (channelCategory != null)
-            Text(modifier = Modifier.padding(horizontal = 2.dp), text = channelCategory)
+            Text(
+                modifier = Modifier.padding(horizontal = 2.dp),
+                text = channelCategory,
+                color = ChatTheme.colors.textHighEmphasis
+            )
     }
 }

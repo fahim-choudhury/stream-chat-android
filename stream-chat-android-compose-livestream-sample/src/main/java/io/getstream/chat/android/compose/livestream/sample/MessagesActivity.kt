@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.GridCells
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.Icon
-import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Scaffold
 import androidx.compose.material.Surface
 import androidx.compose.runtime.getValue
@@ -75,11 +74,12 @@ class MessagesActivity : AppCompatActivity() {
             var isRewardsContentExpanded by remember { mutableStateOf(false) }
             var isChannelDescriptionExpanded by remember { mutableStateOf(false) }
 
-            // A surface container using the 'background' color from the theme
-            Surface(color = MaterialTheme.colors.background) {
-                setContent {
-                    LiveStreamAppTheme {
-                        Scaffold(bottomBar = {
+            LiveStreamAppTheme {
+                // A surface container using the 'background' color from the theme
+                Surface(color = ChatTheme.colors.appBackground) {
+                    Scaffold(
+                        modifier = Modifier.background(color = ChatTheme.colors.appBackground),
+                        bottomBar = {
                             Column(
                                 modifier = Modifier
                                     .wrapContentHeight()
@@ -109,7 +109,8 @@ class MessagesActivity : AppCompatActivity() {
                                             innerTrailingContent = {
                                                 Icon(
                                                     painter = painterResource(id = R.drawable.ic_emoji),
-                                                    contentDescription = LocalContext.current.getString(R.string.accessibility_expand_emoji_reactions)
+                                                    contentDescription = LocalContext.current.getString(R.string.accessibility_expand_emoji_reactions),
+                                                    tint = ChatTheme.colors.textLowEmphasis
                                                 )
                                             }
                                         )
@@ -159,63 +160,70 @@ class MessagesActivity : AppCompatActivity() {
                                     onRewardSelected = {}
                                 )
                             }
-                        }) { paddingValues ->
-                            Column(
-                                Modifier
-                                    .fillMaxSize()
-                                    .animateContentSize()
+                        }
+                    ) { paddingValues ->
+                        Column(
+                            Modifier
+                                .fillMaxSize()
+                                .animateContentSize()
+                                .background(ChatTheme.colors.appBackground)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(250.dp)
+                                    .background(Color.Black),
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(250.dp)
-                                        .background(Color.Black),
-                                ) {
-                                    // TODO set this up so that the URL is sent through extra data so that we can emulate streaming channels better
-                                    VideoPlayer(
-                                        videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-                                        onError = {}
-                                    )
-
-                                    Surface(
-                                        modifier = Modifier
-                                            .padding(12.dp)
-                                            .align(Alignment.TopEnd)
-                                            .clickable {
-                                                isChannelDescriptionExpanded =
-                                                    !isChannelDescriptionExpanded
-                                            },
-                                        color = Color.Black,
-                                        shape = CircleShape
-                                    ) {
-                                        Icon(
-                                            modifier = Modifier
-                                                .padding(1.dp),
-                                            painter = painterResource(id = R.drawable.ic_info),
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                        )
-                                    }
-                                }
-                                ChannelDescription(
-                                    modifier = Modifier
-                                        .background(ChatTheme.colors.appBackground)
-                                        .height(if (isChannelDescriptionExpanded) 50.dp else 0.dp)
-                                        .padding(horizontal = 8.dp)
-                                        .animateContentSize(),
-                                    channel = listViewModel.channel,
-                                    currentUser = User()
+                                // TODO set this up so that the URL is sent through extra data so that we can emulate streaming channels better
+                                VideoPlayer(
+                                    videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+                                    onError = {}
                                 )
 
-                                MessageList(
+                                Surface(
                                     modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(bottom = paddingValues.calculateBottomPadding()),
-                                    viewModel = listViewModel,
+                                        .padding(12.dp)
+                                        .align(Alignment.TopEnd)
+                                        .clickable {
+                                            isChannelDescriptionExpanded =
+                                                !isChannelDescriptionExpanded
+                                        },
+                                    color = Color.Black,
+                                    shape = CircleShape
                                 ) {
-                                    if (it is MessageItemState)
-                                        MessageItem(messageItemState = it)
+                                    Icon(
+                                        modifier = Modifier
+                                            .padding(1.dp),
+                                        painter = painterResource(id = R.drawable.ic_info),
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                    )
                                 }
+                            }
+                            ChannelDescription(
+                                modifier = Modifier
+                                    .background(ChatTheme.colors.appBackground)
+                                    .height(if (isChannelDescriptionExpanded) 52.dp else 0.dp)
+                                    .padding(horizontal = 8.dp)
+                                    .animateContentSize()
+                                    .fillMaxWidth(),
+                                channel = listViewModel.channel,
+                                currentUser = User()
+                            )
+
+                            MessageList(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(
+                                        start = 8.dp,
+                                        end = 8.dp,
+                                        bottom = paddingValues.calculateBottomPadding()
+                                    )
+                                    .background(color = ChatTheme.colors.appBackground),
+                                viewModel = listViewModel,
+                            ) {
+                                if (it is MessageItemState)
+                                    MessageItem(messageItemState = it)
                             }
                         }
                     }

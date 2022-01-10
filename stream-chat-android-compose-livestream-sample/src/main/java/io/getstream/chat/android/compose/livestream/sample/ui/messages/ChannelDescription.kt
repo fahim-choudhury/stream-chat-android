@@ -3,15 +3,18 @@ package io.getstream.chat.android.compose.livestream.sample.ui.messages
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.Button
 import androidx.compose.material.Icon
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import io.getstream.chat.android.client.models.Channel
 import io.getstream.chat.android.client.models.User
 import io.getstream.chat.android.compose.livestream.sample.R
@@ -28,23 +31,40 @@ fun ChannelDescription(
     onChannelDescriptionClicked: () -> Unit = {},
 ) {
     Row(
-        modifier = modifier
-            .fillMaxWidth(),
+        modifier = modifier,
         horizontalArrangement = horizontalArrangement,
         verticalAlignment = verticalAlignment
     ) {
-        ChannelAvatar(channel = channel, currentUser = currentUser)
+        ChannelAvatar(
+            modifier = Modifier
+                .size(24.dp),
+            channel = channel,
+            currentUser = currentUser
+        )
 
         Column {
-            Text(text = channel.name, style = ChatTheme.typography.bodyBold)
-            Text(text = "Channel Description goes here", style = ChatTheme.typography.body)
+            Text(
+                text = channel.name,
+                style = ChatTheme.typography.bodyBold,
+                color = ChatTheme.colors.textLowEmphasis
+            )
+            Text(
+                text = "Channel Description goes here",
+                style = ChatTheme.typography.body,
+                color = ChatTheme.colors.textLowEmphasis
+            )
         }
 
         Button(onClick = onChannelDescriptionClicked) {
-            Icon(painter = painterResource(id = R.drawable.ic_heart), contentDescription = null)
+            Icon(
+                modifier = Modifier.padding(vertical = 2.dp, horizontal = 4.dp),
+                painter = painterResource(id = R.drawable.ic_heart), contentDescription = null,
+                tint = Color.White
+            )
             Text(
                 text = LocalContext.current.getString(R.string.follow),
-                style = ChatTheme.typography.bodyBold
+                style = ChatTheme.typography.bodyBold,
+                color = Color.White
             )
         }
     }

@@ -27,6 +27,6 @@ fun MessageItem(
             color = messageItemState.message.user.color ?: Color.Gray,
             text = "${messageItemState.message.user.name}: "
         )
-        Text(text = messageItemState.message.text)
+        Text(text = buildAnnotatedMessageText(message = messageItemState.message))
     }
 }

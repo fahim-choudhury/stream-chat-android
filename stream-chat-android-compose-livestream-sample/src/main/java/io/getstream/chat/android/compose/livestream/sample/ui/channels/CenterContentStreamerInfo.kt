@@ -45,7 +45,8 @@ fun CenterContentStreamerInfo(
             Text(
                 modifier = Modifier.wrapContentSize(),
                 text = streamerName,
-                style = ChatTheme.typography.bodyBold, fontSize = 12.sp
+                style = ChatTheme.typography.bodyBold, fontSize = 12.sp,
+                color = ChatTheme.colors.textHighEmphasis
             )
     }
 }

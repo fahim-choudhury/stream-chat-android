@@ -21,7 +21,6 @@ import io.getstream.chat.android.client.api.models.QuerySort
 import io.getstream.chat.android.client.models.Filters
 import io.getstream.chat.android.compose.livestream.sample.extensions.streamPreviewLink
 import io.getstream.chat.android.compose.livestream.sample.extensions.streamerAvatarLink
-import io.getstream.chat.android.compose.livestream.sample.extensions.streamerName
 import io.getstream.chat.android.compose.livestream.sample.ui.channels.ChannelItemCenterContent
 import io.getstream.chat.android.compose.livestream.sample.ui.messages.ChatSettingsIcon
 import io.getstream.chat.android.compose.livestream.sample.ui.theme.LiveStreamAppTheme
@@ -65,11 +64,11 @@ class ChannelsActivity : AppCompatActivity() {
                             leadingContent = {
                                 Icon(
                                     modifier = Modifier
+                                        .padding(vertical = 8.dp, horizontal = 12.dp)
                                         .background(Color.DarkGray, RoundedCornerShape(4.dp))
                                         .height(60.dp)
                                         .align(Alignment.CenterVertically)
-                                        .aspectRatio(1.5f)
-                                        .padding(vertical = 4.dp, horizontal = 12.dp),
+                                        .aspectRatio(1.5f),
                                     painter = rememberImagePainter(data = channelItemState.channel.streamPreviewLink),
                                     contentDescription = null
                                 )
@@ -81,7 +80,7 @@ class ChannelsActivity : AppCompatActivity() {
                                         .align(Alignment.Top)
                                         .weight(1f),
                                     streamerAvatarImage = channelItemState.channel.streamerAvatarLink,
-                                    streamerName = channelItemState.channel.streamerName,
+                                    streamerName = channelItemState.channel.name,
                                 )
                             },
                             trailingContent = {

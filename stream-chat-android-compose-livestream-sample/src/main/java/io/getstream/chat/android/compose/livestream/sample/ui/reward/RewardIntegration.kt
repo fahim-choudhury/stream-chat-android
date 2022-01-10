@@ -16,6 +16,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import io.getstream.chat.android.compose.livestream.sample.R
+import io.getstream.chat.android.compose.ui.theme.ChatTheme
 
 @Composable
 fun RewardsIntegration(
@@ -33,6 +34,7 @@ fun RewardsIntegration(
                     .height(IntrinsicSize.Max)
                     .aspectRatio(1f),
                 painter = painterResource(id = R.drawable.reward_ic),
+                tint = ChatTheme.colors.textLowEmphasis,
                 contentDescription = null
             )
             Text(
@@ -41,7 +43,9 @@ fun RewardsIntegration(
                     .height(IntrinsicSize.Max)
                     .align(Alignment.CenterVertically),
                 text = rewardCount.toString(),
-                fontSize = TextUnit.Unspecified
+                fontSize = TextUnit.Unspecified,
+                color = ChatTheme.colors.textLowEmphasis,
+                style = ChatTheme.typography.bodyBold,
             )
         }
     }
