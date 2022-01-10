@@ -19,6 +19,7 @@ import io.getstream.chat.android.common.state.React
 import io.getstream.chat.android.compose.previewdata.PreviewReactionData
 import io.getstream.chat.android.compose.previewdata.PreviewUserData
 import io.getstream.chat.android.compose.state.userreactions.UserReactionItemState
+import io.getstream.chat.android.compose.ui.components.SimpleMenu
 import io.getstream.chat.android.compose.ui.components.reactionoptions.ReactionOptions
 import io.getstream.chat.android.compose.ui.components.userreactions.UserReactions
 import io.getstream.chat.android.compose.ui.theme.ChatTheme
@@ -61,7 +62,7 @@ public fun SelectedReactionsMenu(
         )
     },
 ) {
-    SelectedMessageDialog(
+    SimpleMenu(
         modifier = modifier,
         shape = shape,
         overlayColor = overlayColor,
@@ -87,7 +88,7 @@ internal fun DefaultSelectedReactionsHeaderContent(
     ReactionOptions(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(start = 16.dp, end = 16.dp, bottom = 8.dp, top = 20.dp),
         reactionTypes = reactionTypes,
         onReactionOptionSelected = {
             onMessageAction(

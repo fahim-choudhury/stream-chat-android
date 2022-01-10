@@ -18,6 +18,7 @@ include (
 		':stream-chat-android-compose-livestream-sample',
 		':stream-chat-android-pushprovider-firebase',
 		':stream-chat-android-pushprovider-huawei',
+		':stream-chat-android-markdown-transformer'
 )
 
 buildCache {
