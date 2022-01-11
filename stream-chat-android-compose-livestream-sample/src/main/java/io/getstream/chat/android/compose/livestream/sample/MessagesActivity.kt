@@ -33,7 +33,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import io.getstream.chat.android.client.models.User
 import io.getstream.chat.android.compose.livestream.sample.extensions.streamLink
 import io.getstream.chat.android.compose.livestream.sample.model.mocks.mockRewards
 import io.getstream.chat.android.compose.livestream.sample.ui.messages.ChannelDescription
@@ -209,7 +208,6 @@ class MessagesActivity : AppCompatActivity() {
                                     .animateContentSize()
                                     .fillMaxWidth(),
                                 channel = listViewModel.channel,
-                                currentUser = User()
                             )
 
                             MessageList(

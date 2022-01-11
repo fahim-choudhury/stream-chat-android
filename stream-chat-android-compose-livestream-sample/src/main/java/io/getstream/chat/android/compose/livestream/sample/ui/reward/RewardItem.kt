@@ -102,7 +102,7 @@ fun RewardItem(
             text = reward.name,
             style = ChatTheme.typography.body,
             textAlign = TextAlign.Center,
-            color = Color.DarkGray
+            color = ChatTheme.colors.textLowEmphasis
         )
     }
 }

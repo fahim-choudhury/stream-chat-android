@@ -13,7 +13,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberImagePainter
 import io.getstream.chat.android.client.ChatClient
@@ -59,28 +61,31 @@ class ChannelsActivity : AppCompatActivity() {
                         ChannelItem(
                             channelItem = channelItemState,
                             currentUser = channelListViewModel.user.value,
-                            onChannelClick = {
-                                startActivity(MessagesActivity.getIntent(this, it.cid))
+                            onChannelClick = { startActivity(MessagesActivity.getIntent(this, it.cid)) },
+                            onChannelLongClick = {
+
+                                channelListViewModel.selectChannel(it)
                             },
-                            onChannelLongClick = { channelListViewModel.selectChannel(it) },
                             leadingContent = {
                                 Image(
                                     modifier = Modifier
                                         .padding(vertical = 8.dp, horizontal = 12.dp)
                                         .background(Color.DarkGray, RoundedCornerShape(4.dp))
                                         .height(60.dp)
+                                        .clip(RoundedCornerShape(4.dp))
                                         .align(Alignment.CenterVertically)
                                         .aspectRatio(1.5f),
                                     painter = rememberImagePainter(data = channelItemState.channel.streamPreviewLink),
-                                    contentDescription = null
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop
                                 )
                             },
                             centerContent = {
-                                // TODO fill with real data once appropriate extraData is instated in the backend
                                 ChannelItemCenterContent(
                                     modifier = Modifier
                                         .align(Alignment.Top)
-                                        .weight(1f),
+                                        .weight(1f)
+                                        .padding(vertical = 8.dp),
                                     streamerAvatarImage = channelItemState.channel.streamerAvatarLink,
                                     streamerName = channelItemState.channel.streamerName,
                                     channelDescription = channelItemState.channel.description

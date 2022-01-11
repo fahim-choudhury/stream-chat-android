@@ -8,9 +8,11 @@ import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.sp
 import io.getstream.chat.android.compose.livestream.sample.extensions.badges
 import io.getstream.chat.android.compose.livestream.sample.extensions.color
 import io.getstream.chat.android.compose.state.messages.list.MessageItemState
+import io.getstream.chat.android.compose.ui.theme.ChatTheme
 
 @Composable
 fun MessageItem(
@@ -25,7 +27,9 @@ fun MessageItem(
         }
         Text(
             color = messageItemState.message.user.color ?: Color.Gray,
-            text = "${messageItemState.message.user.name}: "
+            text = "${messageItemState.message.user.name}: ",
+            style = ChatTheme.typography.bodyBold,
+            fontSize = 14.sp
         )
         Text(text = buildAnnotatedMessageText(message = messageItemState.message))
     }

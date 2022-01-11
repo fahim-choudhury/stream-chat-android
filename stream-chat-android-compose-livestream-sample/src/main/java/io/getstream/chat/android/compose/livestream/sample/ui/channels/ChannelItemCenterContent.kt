@@ -32,18 +32,25 @@ fun ChannelItemCenterContent(
             streamerName = streamerName
         )
 
-        if (channelDescription != null)
+        if (channelDescription != null) {
+            val ellipsizedChannelDescription = when (channelDescription.length <= 20) {
+                true -> channelDescription
+                false -> channelDescription.take(20) + "..."
+            }
+
             Text(
                 modifier = Modifier.padding(horizontal = 2.dp),
-                text = channelDescription,
-                color = ChatTheme.colors.textHighEmphasis
+                text = ellipsizedChannelDescription,
+                color = ChatTheme.colors.textHighEmphasis,
             )
+        }
 
-        if (channelCategory != null)
+        if (channelCategory != null) {
             Text(
                 modifier = Modifier.padding(horizontal = 2.dp),
                 text = channelCategory,
                 color = ChatTheme.colors.textHighEmphasis
             )
+        }
     }
 }

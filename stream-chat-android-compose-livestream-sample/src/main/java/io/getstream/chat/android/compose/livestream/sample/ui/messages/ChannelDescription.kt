@@ -1,10 +1,16 @@
 package io.getstream.chat.android.compose.livestream.sample.ui.messages
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Button
 import androidx.compose.material.Icon
 import androidx.compose.material.Text
@@ -15,16 +21,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import coil.compose.rememberImagePainter
+import coil.transform.CircleCropTransformation
 import io.getstream.chat.android.client.models.Channel
-import io.getstream.chat.android.client.models.User
 import io.getstream.chat.android.compose.livestream.sample.R
-import io.getstream.chat.android.compose.ui.components.avatar.ChannelAvatar
+import io.getstream.chat.android.compose.livestream.sample.extensions.description
+import io.getstream.chat.android.compose.livestream.sample.extensions.streamerAvatarLink
 import io.getstream.chat.android.compose.ui.theme.ChatTheme
 
 @Composable
 fun ChannelDescription(
     channel: Channel,
-    currentUser: User,
     modifier: Modifier = Modifier,
     horizontalArrangement: Arrangement.Horizontal = Arrangement.SpaceBetween,
     verticalAlignment: Alignment.Vertical = Alignment.CenterVertically,
@@ -35,27 +42,41 @@ fun ChannelDescription(
         horizontalArrangement = horizontalArrangement,
         verticalAlignment = verticalAlignment
     ) {
-        ChannelAvatar(
+        Image(
             modifier = Modifier
-                .size(24.dp),
-            channel = channel,
-            currentUser = currentUser
+                .padding(8.dp)
+                .size(24.dp)
+                .background(color = ChatTheme.colors.textLowEmphasis, shape = CircleShape),
+            painter = rememberImagePainter(
+                data = channel.streamerAvatarLink,
+                builder = { transformations(CircleCropTransformation()) }
+            ),
+            contentDescription = null
         )
 
-        Column {
+        Column(
+            modifier = Modifier
+                .weight(0.4f)
+                .verticalScroll(ScrollState(0))
+        ) {
             Text(
                 text = channel.name,
                 style = ChatTheme.typography.bodyBold,
                 color = ChatTheme.colors.textLowEmphasis
             )
             Text(
-                text = "Channel Description goes here",
+                text = channel.description ?: "",
                 style = ChatTheme.typography.body,
                 color = ChatTheme.colors.textLowEmphasis
             )
         }
 
-        Button(onClick = onChannelDescriptionClicked) {
+        Button(
+            modifier = Modifier
+                .wrapContentSize()
+                .padding(8.dp),
+            onClick = onChannelDescriptionClicked
+        ) {
             Icon(
                 modifier = Modifier.padding(vertical = 2.dp, horizontal = 4.dp),
                 painter = painterResource(id = R.drawable.ic_heart), contentDescription = null,
