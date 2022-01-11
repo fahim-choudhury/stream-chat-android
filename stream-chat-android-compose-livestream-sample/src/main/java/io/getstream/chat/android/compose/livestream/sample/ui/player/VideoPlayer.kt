@@ -15,7 +15,7 @@ import com.devbrackets.android.exomedia.ui.widget.VideoView
 import com.devbrackets.android.exomedia.ui.widget.controls.VideoControlsMobile
 
 @Composable
-fun VideoPlayer(videoUrl: String, onError: () -> Unit) {
+fun VideoPlayer(videoUrl: String?, onError: () -> Unit) {
     val context = LocalContext.current
 
     val videoView = remember {

@@ -4,13 +4,13 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.Icon
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -19,8 +19,10 @@ import coil.compose.rememberImagePainter
 import io.getstream.chat.android.client.ChatClient
 import io.getstream.chat.android.client.api.models.QuerySort
 import io.getstream.chat.android.client.models.Filters
+import io.getstream.chat.android.compose.livestream.sample.extensions.description
 import io.getstream.chat.android.compose.livestream.sample.extensions.streamPreviewLink
 import io.getstream.chat.android.compose.livestream.sample.extensions.streamerAvatarLink
+import io.getstream.chat.android.compose.livestream.sample.extensions.streamerName
 import io.getstream.chat.android.compose.livestream.sample.ui.channels.ChannelItemCenterContent
 import io.getstream.chat.android.compose.livestream.sample.ui.messages.ChatSettingsIcon
 import io.getstream.chat.android.compose.livestream.sample.ui.theme.LiveStreamAppTheme
@@ -62,7 +64,7 @@ class ChannelsActivity : AppCompatActivity() {
                             },
                             onChannelLongClick = { channelListViewModel.selectChannel(it) },
                             leadingContent = {
-                                Icon(
+                                Image(
                                     modifier = Modifier
                                         .padding(vertical = 8.dp, horizontal = 12.dp)
                                         .background(Color.DarkGray, RoundedCornerShape(4.dp))
@@ -80,7 +82,8 @@ class ChannelsActivity : AppCompatActivity() {
                                         .align(Alignment.Top)
                                         .weight(1f),
                                     streamerAvatarImage = channelItemState.channel.streamerAvatarLink,
-                                    streamerName = channelItemState.channel.name,
+                                    streamerName = channelItemState.channel.streamerName,
+                                    channelDescription = channelItemState.channel.description
                                 )
                             },
                             trailingContent = {

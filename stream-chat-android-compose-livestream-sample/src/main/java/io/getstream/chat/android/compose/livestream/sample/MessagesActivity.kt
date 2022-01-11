@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import io.getstream.chat.android.client.models.User
+import io.getstream.chat.android.compose.livestream.sample.extensions.streamLink
 import io.getstream.chat.android.compose.livestream.sample.model.mocks.mockRewards
 import io.getstream.chat.android.compose.livestream.sample.ui.messages.ChannelDescription
 import io.getstream.chat.android.compose.livestream.sample.ui.messages.ChatSettingsIcon
@@ -54,12 +55,10 @@ import io.getstream.chat.android.compose.viewmodel.messages.MessagesViewModelFac
 
 class MessagesActivity : AppCompatActivity() {
 
-    private val channelId = "livestream:livestream-test"
-
     private val factory by lazy {
         MessagesViewModelFactory(
             context = this,
-            channelId = channelId
+            channelId = intent.getStringExtra(KEY_CHANNEL_ID) ?: ""
         )
     }
 
@@ -174,11 +173,13 @@ class MessagesActivity : AppCompatActivity() {
                                     .height(250.dp)
                                     .background(Color.Black),
                             ) {
-                                // TODO set this up so that the URL is sent through extra data so that we can emulate streaming channels better
-                                VideoPlayer(
-                                    videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-                                    onError = {}
-                                )
+                                val streamLink = listViewModel.channel.streamLink
+
+                                if (streamLink != null)
+                                    VideoPlayer(
+                                        videoUrl = streamLink,
+                                        onError = {}
+                                    )
 
                                 Surface(
                                     modifier = Modifier
