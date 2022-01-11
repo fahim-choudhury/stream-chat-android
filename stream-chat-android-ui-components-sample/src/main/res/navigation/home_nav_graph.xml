@@ -8,9 +8,9 @@
 
     <fragment
         android:id="@+id/channels_fragment"
-        android:name="io.getstream.chat.ui.sample.feature.channel.list.ChannelListFragment"
-        android:label="ChannelsFragment"
-        tools:layout="@layout/fragment_channels"
+        android:name="io.getstream.chat.ui.sample.feature.channel.list.ViewPagerFragment"
+        android:label="ViewPagerFragment"
+        tools:layout="@layout/view_pager_fragment_channels"
         >
     </fragment>
 

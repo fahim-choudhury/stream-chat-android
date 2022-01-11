@@ -17,7 +17,6 @@ import io.getstream.chat.android.client.ChatClient
 import io.getstream.chat.android.client.extensions.isAnonymousChannel
 import io.getstream.chat.android.client.models.Filters
 import io.getstream.chat.android.core.internal.InternalStreamChatApi
-import io.getstream.chat.android.offline.querychannels.DefaultChatEventHandler
 import io.getstream.chat.android.ui.channel.list.viewmodel.ChannelListViewModel
 import io.getstream.chat.android.ui.channel.list.viewmodel.bindView
 import io.getstream.chat.android.ui.channel.list.viewmodel.factory.ChannelListViewModelFactory
@@ -30,17 +29,6 @@ import io.getstream.chat.ui.sample.feature.common.ConfirmationDialogFragment
 import io.getstream.chat.ui.sample.feature.home.HomeFragmentDirections
 
 class ChannelListFragment : Fragment() {
-
-    private val viewModel: ChannelListViewModel by viewModels {
-        ChannelListViewModelFactory(
-            filter = Filters.and(
-                Filters.eq("type", "messaging"),
-                Filters.`in`("members", listOf(ChatClient.instance().getCurrentUser()?.id ?: "")),
-                Filters.or(Filters.notExists("draft"), Filters.eq("draft", false)),
-            ),
-            chatEventHandlerFactory = CustomChatEventHandlerFactory(),
-        )
-    }
     private val searchViewModel: SearchViewModel by viewModels()
 
     private var _binding: FragmentChannelsBinding? = null
@@ -62,6 +50,20 @@ class ChannelListFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         setupOnClickListeners()
+
+        val userId = arguments?.getString(USER)
+
+        val viewModel: ChannelListViewModel by viewModels {
+            ChannelListViewModelFactory(
+                filter = Filters.and(
+                    Filters.eq("type", "messaging"),
+                    Filters.`in`("members", listOf(userId ?: ChatClient.instance().getCurrentUser()?.id ?: "")),
+                    Filters.or(Filters.notExists("draft"), Filters.eq("draft", false)),
+                ),
+                chatEventHandlerFactory = CustomChatEventHandlerFactory(),
+            )
+        }
+
         viewModel.bindView(binding.channelsView, viewLifecycleOwner)
         searchViewModel.bindView(binding.searchResultListView, this)
 
@@ -137,6 +139,20 @@ class ChannelListFragment : Fragment() {
                 }
 
                 finish()
+            }
+        }
+    }
+
+    companion object {
+        private const val USER: String = "USER"
+
+        fun createWithPosition(position: Int): ChannelListFragment {
+            val userIds = listOf("leandro", "marton", "oleg")
+
+            return ChannelListFragment().apply {
+                arguments = Bundle().apply {
+                    putString(USER, userIds[position])
+                }
             }
         }
     }
