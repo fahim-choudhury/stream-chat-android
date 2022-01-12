@@ -66,3 +66,8 @@ public val Message.supportedReactionCounts: Map<String, Int>
 public fun Message.isReply(): Boolean = replyTo != null
 
 public fun Message.hasText(): Boolean = text.isNotEmpty()
+
+public fun Message.canBeDeleted(): Boolean {
+    val roles = listOf("moderator", "channel_moderator", "admin")
+    return roles.contains(user.role)
+}

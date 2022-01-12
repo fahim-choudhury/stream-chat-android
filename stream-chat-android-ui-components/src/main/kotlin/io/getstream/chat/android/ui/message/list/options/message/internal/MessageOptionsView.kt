@@ -75,7 +75,9 @@ internal class MessageOptionsView : FrameLayout {
         binding.flagTV.configureListItem(textStyle, style.flagIcon)
         binding.muteTV.configureListItem(textStyle, style.muteIcon)
         binding.editTV.isVisible = false
-        binding.deleteTV.isVisible = false
+        val deleteConfiguration =
+            configuration.copy(deleteMessageEnabled = style.deleteMessageEnabled && configuration.messageCanBeDeleted)
+        configureDeleteMessage(deleteConfiguration, style)
         configureMute(
             configuration = configuration,
             style = style,
@@ -198,7 +200,7 @@ internal class MessageOptionsView : FrameLayout {
 
     private fun configureBlock(configuration: Configuration, style: MessageListViewStyle) {
         binding.blockTV.isVisible = configuration.blockEnabled
-        if(configuration.blockEnabled) {
+        if (configuration.blockEnabled) {
             binding.blockTV.configureListItem(style.messageOptionsText, style.blockIcon)
         }
     }
@@ -236,6 +238,7 @@ internal class MessageOptionsView : FrameLayout {
         val pinMessageEnabled: Boolean,
         val muteEnabled: Boolean,
         val blockEnabled: Boolean,
+        val messageCanBeDeleted: Boolean,
     ) : Serializable {
         internal companion object {
             operator fun invoke(
@@ -243,6 +246,7 @@ internal class MessageOptionsView : FrameLayout {
                 channelConfig: Config,
                 hasTextToCopy: Boolean,
                 suppressThreads: Boolean,
+                messageCanBeDeleted: Boolean = false,
             ) =
                 Configuration(
                     replyEnabled = viewStyle.replyEnabled,
@@ -256,6 +260,7 @@ internal class MessageOptionsView : FrameLayout {
                     pinMessageEnabled = viewStyle.pinMessageEnabled,
                     muteEnabled = viewStyle.muteEnabled,
                     blockEnabled = viewStyle.blockEnabled,
+                    messageCanBeDeleted = messageCanBeDeleted
                 )
         }
     }

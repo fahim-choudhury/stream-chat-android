@@ -27,6 +27,7 @@
         app:streamUiFlagMessageConfirmationEnabled="true"
         app:streamUiMuteUserEnabled="false"
         app:streamUiPinMessageEnabled="true"
+        app:streamUiDeleteMessageEnabled="true"
         />
 
     <io.getstream.chat.android.ui.message.input.MessageInputView
