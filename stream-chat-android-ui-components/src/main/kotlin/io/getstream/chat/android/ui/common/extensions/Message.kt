@@ -5,6 +5,7 @@ import io.getstream.chat.android.client.models.Message
 import io.getstream.chat.android.client.models.Reaction
 import io.getstream.chat.android.client.utils.SyncStatus
 import io.getstream.chat.android.ui.ChatUI
+import io.getstream.chat.android.ui.utils.ChatUserRole
 import java.util.Date
 
 public fun Message.isDeleted(): Boolean = deletedAt != null
@@ -67,7 +68,7 @@ public fun Message.isReply(): Boolean = replyTo != null
 
 public fun Message.hasText(): Boolean = text.isNotEmpty()
 
-public fun Message.canBeDeleted(): Boolean {
-    val roles = listOf("moderator", "channel_moderator", "admin")
-    return roles.contains(user.role)
+public fun Message.canBeDeleted(currentUserRole: ChatUserRole): Boolean {
+    val roles = listOf(ChatUserRole.MODERATOR, ChatUserRole.CHANNEL_MODERATOR, ChatUserRole.ADMIN)
+    return roles.contains(currentUserRole)
 }

@@ -99,6 +99,7 @@ import io.getstream.chat.android.ui.message.list.internal.HiddenMessageListItemP
 import io.getstream.chat.android.ui.message.list.internal.MessageListScrollHelper
 import io.getstream.chat.android.ui.message.list.options.message.internal.MessageOptionsDialogFragment
 import io.getstream.chat.android.ui.message.list.options.message.internal.MessageOptionsView
+import io.getstream.chat.android.ui.utils.ChatUserRole
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -137,6 +138,8 @@ public class MessageListView : ConstraintLayout {
             Gravity.CENTER
         )
     }
+
+    private var currentUserRole: ChatUserRole? = null
 
     private var endRegionReachedHandler = EndRegionReachedHandler {
         throw IllegalStateException("endRegionReachedHandler must be set.")
@@ -297,6 +300,7 @@ public class MessageListView : ConstraintLayout {
     private val DEFAULT_MESSAGE_LONG_CLICK_LISTENER =
         MessageLongClickListener { message ->
             context.getFragmentManager()?.let { fragmentManager ->
+                checkNotNull(currentUserRole, { "Current user's role must be set before invoking MessageOptions" })
                 MessageOptionsDialogFragment
                     .newMessageOptionsInstance(
                         message,
@@ -305,7 +309,7 @@ public class MessageListView : ConstraintLayout {
                             channelConfig = channel.config,
                             hasTextToCopy = message.text.isNotBlank(),
                             suppressThreads = adapter.isThread || message.isInThread(),
-                            messageCanBeDeleted = message.canBeDeleted()
+                            messageCanBeDeleted = message.canBeDeleted(currentUserRole!!)
                         ),
                         requireStyle(),
                         messageListItemViewHolderFactory,
@@ -1375,6 +1379,16 @@ public class MessageListView : ConstraintLayout {
      */
     public fun setErrorEventHandler(handler: ErrorEventHandler) {
         this.errorEventHandler = handler
+    }
+
+    /**
+     * Sets the current user's role to check on MessageOptions if messages can be deleted by moderator
+     *
+     * @param [ChatUserRole] the role current user has
+     */
+    public fun setCurrentUserRole(role: String) {
+        val userRole = ChatUserRole.fromStringValue(role)
+        this.currentUserRole = userRole
     }
     //endregion
 
