@@ -33,6 +33,7 @@ import io.getstream.chat.android.client.models.User
 import io.getstream.chat.android.client.models.UserEntity
 import io.getstream.chat.android.client.utils.Result
 import io.getstream.chat.android.client.utils.SyncStatus
+import io.getstream.chat.android.client.utils.map
 import io.getstream.chat.android.client.utils.observable.Disposable
 import io.getstream.chat.android.core.ExperimentalStreamChatApi
 import io.getstream.chat.android.core.internal.coroutines.DispatcherProvider
@@ -81,7 +82,6 @@ import io.getstream.chat.android.offline.usecase.LoadNewerMessages
 import io.getstream.chat.android.offline.usecase.MarkAllRead
 import io.getstream.chat.android.offline.usecase.MarkRead
 import io.getstream.chat.android.offline.usecase.QueryChannels
-import io.getstream.chat.android.offline.usecase.QueryChannelsLoadMore
 import io.getstream.chat.android.offline.usecase.QueryMembers
 import io.getstream.chat.android.offline.usecase.SearchUsersByName
 import io.getstream.chat.android.offline.usecase.SendGiphy
@@ -105,7 +105,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -206,14 +205,6 @@ internal class ChatDomainImpl internal constructor(
      * StateFlow<Boolean> that indicates if we are currently online
      */
     override val connectionState: StateFlow<ConnectionState> = _connectionState
-
-    @Deprecated(
-        message = "Use connectionState instead",
-        level = DeprecationLevel.ERROR
-    )
-    override val online: StateFlow<Boolean> =
-        _connectionState.map { state -> state == ConnectionState.CONNECTED }
-            .stateIn(scope, SharingStarted.Eagerly, false)
 
     /**
      * The total unread message count for the current user.
@@ -924,7 +915,8 @@ internal class ChatDomainImpl internal constructor(
         sort: QuerySort<Channel>,
         limit: Int,
         messageLimit: Int,
-    ): Call<QueryChannelsController> = QueryChannels(this).invoke(filter, sort, limit, messageLimit)
+        memberLimit: Int,
+    ): Call<QueryChannelsController> = QueryChannels(this).invoke(filter, sort, limit, messageLimit, memberLimit)
 
     /**
      * Returns a thread controller for the given channel and message id.
@@ -947,7 +939,8 @@ internal class ChatDomainImpl internal constructor(
         }
     }
 
-    override fun loadOlderMessages(cid: String, messageLimit: Int): Call<Channel> = client.loadOlderMessages(cid, messageLimit)
+    override fun loadOlderMessages(cid: String, messageLimit: Int): Call<Channel> =
+        client.loadOlderMessages(cid, messageLimit)
 
     override fun loadNewerMessages(cid: String, messageLimit: Int): Call<Channel> =
         LoadNewerMessages(this).invoke(cid, messageLimit)
@@ -964,18 +957,42 @@ internal class ChatDomainImpl internal constructor(
         sort: QuerySort<Channel>,
         limit: Int,
         messageLimit: Int,
-    ): Call<List<Channel>> = QueryChannelsLoadMore(this).invoke(filter, sort, limit, messageLimit)
+        memberLimit: Int,
+    ): Call<List<Channel>> {
+        return CoroutineCall(scope) {
+            val queryChannelsController = queryChannels(filter, sort)
+            val oldChannels = queryChannelsController.channels.value
+            val pagination = queryChannelsController.loadMoreRequest(
+                channelLimit = limit,
+                messageLimit = messageLimit,
+                memberLimit = memberLimit,
+            )
+            queryChannelsController.runQuery(pagination).map { it - oldChannels.toSet() }
+        }
+    }
 
     override fun queryChannelsLoadMore(
         filter: FilterObject,
         sort: QuerySort<Channel>,
         messageLimit: Int,
-    ): Call<List<Channel>> = QueryChannelsLoadMore(this).invoke(filter, sort, messageLimit)
+    ): Call<List<Channel>> = queryChannelsLoadMore(
+        filter = filter,
+        sort = sort,
+        limit = CHANNEL_LIMIT,
+        messageLimit = messageLimit,
+        memberLimit = MEMBER_LIMIT,
+    )
 
     override fun queryChannelsLoadMore(
         filter: FilterObject,
         sort: QuerySort<Channel>,
-    ): Call<List<Channel>> = QueryChannelsLoadMore(this).invoke(filter, sort)
+    ): Call<List<Channel>> = queryChannelsLoadMore(
+        filter = filter,
+        sort = sort,
+        limit = CHANNEL_LIMIT,
+        messageLimit = MESSAGE_LIMIT,
+        memberLimit = MEMBER_LIMIT,
+    )
 
     /**
      * Loads more messages for the specified thread.
